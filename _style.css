@@ -107,6 +107,17 @@ a:hover {
   text-decoration: none;
 }
 
+/* ---- 行內原文連結 ---- */
+.source-link-inline {
+  color: #7ec8e3;
+  text-decoration: none;
+  border: none;
+}
+
+.source-link-inline:hover {
+  text-decoration: underline;
+}
+
 /* ---- 程式碼 ---- */
 code {
   font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
