@@ -5,16 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>駕馭工程：在以 Agent 為優先的世界中發揮 Codex 的力量</title>
     <link rel="stylesheet" href="_style.css">
-    <style>.image-placeholder{background:#16213e;border:1px solid #2a2a4a;border-radius:8px;padding:16px;margin:20px 0;text-align:center;}</style>
 </head>
 <body>
     <header>
-        <a class="source-link" href="https://openai.com/index/harness-engineering/" target="_blank">📄 原文：openai.com</a>
         <h1>駕馭工程：在以 Agent 為優先的世界中發揮 Codex 的力量</h1>
         <div class="meta">
-            <span class="author">作者：OpenAI</span> | 
-            <span class="translator">翻譯：Kenji 的翻譯官 📝</span> | 
-            <span class="date">發布日期：2026年3月</span>
+            <span>OpenAI · 2026年2月13日</span> · 
+            <a href="https://openai.com/index/harness-engineering/" target="_blank" class="source-link-inline">閱讀原文 →</a>
         </div>
     </header>
     
@@ -69,10 +66,6 @@
 
         <p>Repo 的知識庫存放在一個結構化的 <code>docs/</code> 目錄中，並被視為事實來源（system of record）。我們將一份簡短的 <code>AGENTS.md</code>（大約 100 行）注入到上下文中，它主要作為一張地圖，指向其他地方更深層的事實來源。</p>
 
-        <div class="image-placeholder">
-            <p>📊 <a href="https://openai.com/index/harness-engineering/" target="_blank">此處有圖表，點此查看原文</a></p>
-        </div>
-
         <p>設計文件會被分類和建立索引，包含驗證狀態以及一套定義 Agent 優先操作原則的核心理念。架構文件則提供了業務領域和套件分層的頂層地圖。品質文件會對每個產品領域和架構層進行評分，並追蹤隨時間推移產生的落差。</p>
 
         <p>計畫（Plans）被視為一等公民的產物。針對小型變更，我們會使用臨時的輕量級計畫；而複雜的工作則會被記錄在執行計畫中，這些計畫包含了進度和決策日誌，並會被 commit 到 Repo 裡。活躍的計畫、已完成的計畫以及已知的技術債都會被版本化並放在一起，讓 Agent 可以在不依賴外部上下文的情況下運作。</p>
@@ -96,10 +89,6 @@
         <p>光靠文件並不能保持一個完全由 Agent 生成的程式碼庫的一致性。藉由強制執行不變性（invariants），而不是微觀管理實作細節，我們讓 Agent 能夠快速發布功能，又不會破壞基礎。</p>
 
         <p>Agent 在擁有嚴格邊界和可預測結構的環境中最有效率，因此我們圍繞著一個嚴謹的架構模型來構建應用程式。每個業務領域都被劃分為一組固定的層級，具有嚴格驗證的相依方向以及一組有限的允許連結。我們透過自訂的 linters 和結構測試，以機械式的方式來強制執行這些限制。</p>
-
-        <div class="image-placeholder">
-            <p>📊 <a href="https://openai.com/index/harness-engineering/" target="_blank">此處有圖表，點此查看原文</a></p>
-        </div>
 
         <p>這通常是那種你會推遲到擁有數百名工程師時才會去做的架構。但對於寫程式的 Agent 來說，這是早期的先決條件：這些限制正是確保速度之餘，又不會造成程式碼腐壞或架構偏離的原因。</p>
 
