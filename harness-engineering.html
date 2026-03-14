@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harness Engineering：在 Agent 優先的世界裡善用 Codex</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background: #1a1a2e; color: #e8e8f0; line-height: 1.8; padding: 40px 20px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .source-link { display: inline-block; background: #16213e; border: 1px solid #0f3460; border-radius: 6px; padding: 8px 16px; margin-bottom: 32px; font-size: 0.85em; color: #7ec8e3; text-decoration: none; }
+    .source-link:hover { border-color: #7ec8e3; }
+    h1 { font-size: 1.9em; font-weight: 600; color: #ffffff; margin-bottom: 8px; line-height: 1.4; }
+    .meta { color: #888; font-size: 0.85em; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #2a2a4a; }
+    h2 { font-size: 1.35em; font-weight: 600; color: #a0c4ff; margin: 40px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #2a2a4a; }
+    p { margin-bottom: 16px; }
+    ul, ol { padding-left: 24px; margin-bottom: 16px; }
+    li { margin-bottom: 8px; }
+    strong { color: #e8e8f0; }
+    a { color: #7ec8e3; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .back { display: inline-block; margin-top: 40px; color: #7ec8e3; font-size: 0.9em; }
+    blockquote { border-left: 3px solid #0f3460; padding: 12px 20px; margin: 20px 0; background: #16213e; border-radius: 0 6px 6px 0; color: #c8c8e0; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <a class="source-link" href="https://openai.com/index/harness-engineering/" target="_blank">📄 原文：openai.com/index/harness-engineering/</a>
+
+  <h1>Harness Engineering：在 Agent 優先的世界裡善用 Codex</h1>
+  <div class="meta">OpenAI · 翻譯：翻譯官 📝 · 2026-03-14</div>
+
+  <p>在過去的五個月裡，我們的團隊一直在進行一項實驗：在完全沒有手動編寫任何一行程式碼的情況下，打造並發布一款軟體產品的內部測試版。</p>
+  <p>這款產品擁有內部的每日活躍使用者以及外部的 Alpha 測試者。它會經歷發布、部署、故障以及修復的過程。不同之處在於，每一行程式碼——包含應用程式邏輯、測試、持續整合設定、文件、可觀測性以及內部工具——全都是由 Codex 所編寫。我們估計打造這個產品所花費的時間，大約只有手動寫碼的十分之一。</p>
+  <blockquote><strong>人類負責引導，Agent 負責執行。</strong></blockquote>
+  <p>我們刻意選擇了這項限制，以便打造出必要的基礎設施，讓工程速度獲得數量級的提升。我們只花了幾週的時間，就發布了最終高達百萬行程式碼的專案。</p>
+
+  <h2>給 Codex 一張地圖，而不是一本 1000 頁的操作手冊</h2>
+  <p>上下文管理是讓 Agent 能夠有效處理大型且複雜任務的最大挑戰之一。最早學到的教訓很簡單：給 Codex 一張地圖，而不是一本 1000 頁的操作手冊。</p>
+  <p>我們曾嘗試過「一個巨大的 AGENTS.md」做法。它以可預期的方式失敗了：</p>
+  <ul>
+    <li><strong>上下文是稀缺資源。</strong>巨大的指令檔案會排擠掉任務、程式碼以及相關文件——導致 Agent 要麼漏掉關鍵限制，要麼往錯誤方向最佳化。</li>
+    <li><strong>過多的指導反而毫無指導作用。</strong>當每件事都「很重要」時，就沒有什麼是真正重要的。Agent 最終只會進行局部的模式匹配，而不是有目的地導航。</li>
+    <li><strong>它會瞬間腐壞。</strong>單體式的手冊會變成過時規則的墳墓，Agent 無法辨別哪些規則仍然有效，人類也會停止維護它。</li>
+    <li><strong>它很難驗證。</strong>單一的大塊內容不適合進行機械式檢查（涵蓋範圍、新鮮度、擁有權、交叉連結），因此內容的偏移是不可避免的。</li>
+  </ul>
+  <p>因此，我們不再將 AGENTS.md 視為百科全書，而是將其視為<strong>目錄</strong>。</p>
+  <p>儲存庫的知識庫存在於一個結構化的 <code>docs/</code> 目錄中，並被視為記錄系統。一個簡短的 AGENTS.md（大約 100 行）被注入到上下文中，主要作為一張地圖，並帶有指向其他地方更深層的單一事實來源的指標。</p>
+  <p>這實現了<strong>漸進式揭露</strong>：Agent 從一個小而穩定的進入點開始，並被教導接下來該去哪裡尋找資訊，而不是一開始就被龐大的資訊量給淹沒。</p>
+  <p>我們透過機械化的方式來強制執行這一點。專屬的程式碼檢查工具和 CI 任務會驗證知識庫是否為最新狀態、是否有交叉連結，以及結構是否正確。一個定期執行的「文件園丁」Agent 會掃描那些無法反映真實程式碼行為的陳舊文件，並開啟修復的拉取請求。</p>
+
+  <h2>缺乏人類親手寫碼，引進了一種全新的工程工作</h2>
+  <p>初期的進展比我們預期的還要慢，這不是因為 Codex 能力不足，而是因為環境的規範不夠明確。Agent 缺乏朝著高階目標邁進所需的工具、抽象化以及內部結構。我們工程團隊的主要工作，變成了「賦能」Agent 去完成有用的工作。</p>
+  <p>在實務上，這意味著要以深度優先的方式工作：將較大的目標分解成較小的建構區塊（設計、程式碼、審查、測試等），提示 Agent 去建構這些區塊，然後利用它們來解鎖更複雜的任務。當出現錯誤時，解決方案幾乎從來都不是「再試一次」，而是問：「現在缺少了什麼能力？我們該如何讓 Agent 能夠理解並強制執行這個能力？」</p>
+  <p>隨著程式碼吞吐量的增加，我們的瓶頸變成了人類的 QA 量能。因此我們努力讓應用程式 UI、日誌以及應用程式指標等事物，都能直接被 Codex 所讀懂。我們經常看到單次執行的 Codex 花費超過六個小時在處理單一任務上（通常發生在人類睡覺的時候）。</p>
+
+  <h2>從 Agent 的角度來看，任何它無法在上下文中存取的東西，實際上就是不存在的</h2>
+  <p>從 Agent 的角度來看，任何它在執行時無法於上下文中存取到的東西，實際上就是不存在的。存在於 Google Docs、聊天群組對話或人們腦海中的知識，對系統來說是無法存取的。只有儲存庫本地端帶有版本控制的產物（程式碼、Markdown 文件、Schema、可執行計畫），才是它唯一能看見的東西。</p>
+  <p>我們學到：隨著時間推移，需要將越來越多的上下文推播到 Repo 中。那場讓團隊在架構模式上達成共識的 Slack 討論？如果它不能被 Agent 發現，那它就等同於無法被理解——就像三個月後才加入的新員工也不會知道這件事一樣。</p>
+
+  <h2>強制執行不變量，而不是實作細節</h2>
+  <p>光靠文件是無法讓完全由 Agent 生成的程式碼庫保持一致性的。透過強制執行不變量而不是微觀管理實作細節，我們能讓 Agent 快速發布程式碼，同時又不會破壞基礎架構。</p>
+  <p>Agent 在具有嚴格邊界和可預測結構的環境中最有效率，因此我們圍繞著一個嚴謹的架構模型來建構應用程式。每一個業務領域都被劃分成一組固定的層級，並具有嚴格驗證的相依性方向。這些限制條件都是透過自訂的程式碼檢查工具和結構測試來強制機械化執行的。</p>
+  <p>這種架構通常會被推遲到擁有數百名工程師時才進行。但對於 Agent 來說，這卻是早期的先決條件：這些限制條件正是讓開發能保持速度，又不會產生程式碼腐化或架構偏移的關鍵。</p>
+  <p>在以人類為優先的工作流程中，這些規則可能會讓人覺得過於迂腐或受限。但有了 Agent，它們就會變成<strong>乘數</strong>：一旦被編寫進程式碼中，它們就能同時套用到所有地方。</p>
+  <p>最終產出的程式碼並不總是符合人類的風格偏好，但這沒有關係。只要產出的結果是正確的、可維護的，並且能夠讓未來的 Agent 在執行時讀懂，它就達到了標準。</p>
+
+  <h2>隨著 Codex 吞吐量的增加，許多傳統的工程規範反而帶來了反效果</h2>
+  <p>這個儲存庫在運作時使用了最少的阻擋性合併閘門。拉取請求的生命週期都很短。不穩定的測試通常會透過後續的執行來處理，而不是無限期地阻擋進度。在一個 Agent 吞吐量遠遠超過人類注意力的系統中，進行修正的成本很低，而等待的成本卻很高昂。</p>
+
+  <h2>我們發布了什麼</h2>
+  <p>當我們說這個程式碼庫是由 Codex Agent 生成時，我們指的是程式碼庫中的「所有東西」。Agent 產生了：產品程式碼與測試、CI 設定與發布工具、內部開發者工具、文件與設計歷史記錄、評估框架與基準測試，以及可觀測性基礎設施。</p>
+
+  <a class="back" href="index.html">← 回翻譯站首頁</a>
+</div>
+</body>
+</html>
