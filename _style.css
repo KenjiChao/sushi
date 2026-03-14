@@ -17,9 +17,9 @@ body {
 }
 
 .container {
-  max-width: 960px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 16px 20px;
+  padding: 24px 48px;
 }
 
 /* ---- 標題 ---- */
