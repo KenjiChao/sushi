@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>逆向工程 Claude 的生成式 UI - 並為終端機打造專屬版本</title>
+    <link rel="stylesheet" href="_style.css">
+</head>
+<body>
+    <div class="container">
+        <a class="source-link" href="https://michaellivs.com/blog/reverse-engineering-claude-generative-ui" target="_blank">📄 原文：michaellivs.com/blog/reverse-engineering-claude-generative-ui</a>
+
+        <header>
+            <h1>逆向工程 Claude 的生成式 UI - 並為終端機打造專屬版本</h1>
+            <div class="meta">michaellivs.com · 翻譯：翻譯官 📝 · 2026-03-13</div>
+        </header>
+
+        <article>
+        <h2>發現 (The Discovery)</h2>
+        <p>Anthropic 在幾個小時前發表了 Claude 的生成式 UI (generative UI)。互動式小工具 (interactive widgets)——滑桿、圖表、動畫——在 claude.ai 的對話中行內渲染 (rendered inline)。不是圖片，也不是程式碼區塊 (code blocks)。而是能在聊天室內執行 JavaScript 的真實 HTML 應用程式。</p>
+
+        <p>這並不令人意外。Vercel 等公司推動生成式 UI 已經有一段時間了，而且我知道 Anthropic 遲早會在這個領域有所動作。這也不是我第一次深入研究 Anthropic 的實作細節——我之前就曾對他們的沙盒架構 (sandbox architecture) 進行過逆向工程 (reverse-engineered) 並撰寫了相關探討沙盒的文章。</p>
+
+        <p>所以我帶著一個明確的目的前往 claude.ai：確切了解他們是如何實作的。最終，我為終端機為基礎的程式碼代理 (terminal-based coding agent) <code>pi</code> 打造了屬於我自己的版本。</p>
+
+        <h2>第一部分：盤問 Claude 關於它自己的 UI</h2>
+
+        <h3>是工具調用，而不是 Markdown</h3>
+        <p>我的第一個假設錯了。我原以為 Claude 是將 HTML 作為其 Markdown 回應的一部分輸出，然後由前端 (frontend) 進行行內渲染。Claude 糾正了我：「它根本不是 Markdown 輸出的一部分。我調用了一個名為 <code>show_widget</code> 的工具 (tool call)，並將 HTML 作為參數傳遞。」</p>
+
+        <p>所以這是一個工具調用。HTML 是一個參數負載 (parameter payload)，而不是串流文本 (streamed text)。包含四個參數：</p>
+        <ul>
+            <li><code>i_have_seen_read_me</code>：Claude 必須先調用 <code>read_me</code> 來載入設計指南 (design guidelines)。</li>
+            <li><code>title</code>：蛇形命名法 (snake_case) 的識別符 (identifier)。</li>
+            <li><code>loading_messages</code>：1 到 4 個短字串，會在渲染時顯示。</li>
+            <li><code>widget_code</code>：原始 HTML 片段 (raw HTML fragment)，不包含 html/head/body/doctype 標籤。</li>
+        </ul>
+
+        <h3>read_me 模式 - 漸進式揭露 (Progressive Disclosure)</h3>
+        <p>在使用 <code>show_widget</code> 之前，Claude 必須帶有 <code>modules</code> 參數來調用 <code>read_me</code>。可用的模組有：diagram、mockup、interactive、chart、art。這是一個延遲載入的文件系統 (lazy documentation system)——只在需要時載入相關的子集，而不是一開始就傾倒整個設計系統。</p>
+
+        <h3>不是 Iframe - 即時 DOM 注入 (Live DOM Injection)</h3>
+        <p>證明它是 DOM 注入而不是 iframe 的證據有：</p>
+        <ul>
+            <li>CSS 變數可以正常解析（處於同一個文件層疊 cascade）。</li>
+            <li>可以存取 <code>sendPrompt()</code>（父頁面的函式）。</li>
+            <li>透明背景（沒有 iframe 容器）。</li>
+            <li>沒有載入時的閃爍（沒有 iframe 邊框或捲軸）。</li>
+        </ul>
+        <p>所謂的「沙盒」其實只是一個內容安全策略 (CSP, Content Security Policy)，用來限制可用的內容傳遞網路 (CDN, Content Delivery Network) 網域：cdnjs.cloudflare.com、cdn.jsdelivr.net、unpkg.com、esm.sh。</p>
+
+        <h3>Artifacts 與 Visualizer 的比較</h3>
+        <p>Artifacts = 交付成果（側邊面板、固定的函式庫、具持久性 persists）。Visualizer = 行內增強功能（透明、可使用任何 CDN 函式庫、具短暫性 ephemeral）。兩者的觸發語句也不同。</p>
+
+        <h3>串流架構 (Streaming Architecture)</h3>
+        <ol>
+            <li>大型語言模型 (LLM) 生成 <code>show_widget</code> 工具調用。</li>
+            <li><code>widget_code</code> 以 token 為單位進行串流 (streaming)。</li>
+            <li>對部分內容進行漸進式 HTML 解析 (incremental HTML parsing)。</li>
+            <li>即時插入 DOM 節點。</li>
+            <li>CSS 變數立即解析。</li>
+            <li>樣式/HTML 在到達時隨即渲染，腳本 (scripts) 最後執行。</li>
+            <li>CDN 函式庫非同步 (async) 載入。</li>
+        </ol>
+
+        <h2>第二部分：為 Pi 打造專屬版本</h2>
+        <p>Pi 是一個以終端機為基礎的程式碼代理，無法直接渲染互動式 HTML。被否決的選項：終端機圖片協定（無互動性）、本機網頁伺服器（會跳出終端機）、TUI（終端機使用者介面）近似方案（限制太多）。</p>
+        <p>解決方案：Glimpse——原生的 macOS 微型 UI 函式庫 (micro-UI library)。透過 Swift 執行檔加上 Node.js 包裝器 (wrapper)，能在 50 毫秒內開啟 WKWebView 視窗。不使用 Electron。具備完整的瀏覽器引擎、雙向 JSON、<code>setHTML()</code> 以及 <code>send(js)</code> API。</p>
+        <p>仿效 Claude 的兩個工具：<code>visualize_read_me</code>（延遲文件載入器）與 <code>show_widget</code>（開啟 Glimpse 視窗，回傳互動資料）。</p>
+
+        <h2>第三部分：串流挑戰</h2>
+        <p>4 次嘗試：</p>
+        <ol>
+            <li>每個變化片段 (delta) 都調用 <code>setHTML()</code> → 卡頓，每 80 毫秒就會發生全頁面重排 (full page reflow)。</li>
+            <li>透過 JavaScript <code>eval</code> 修改 <code>innerHTML</code> → 較好，但依然卡頓。</li>
+            <li>樸素的 DOM 附加 (Naive DOM appending) → 失敗，因為瀏覽器會自動補齊未閉合的標籤。</li>
+            <li>使用 morphdom 進行 DOM 差異比對 (DOM diffing) → 完美解決方案。</li>
+        </ol>
+        <p>morphdom 應用了最小化的修補 (minimal patches)：跳過未變更的節點（<code>isEqualNode</code>），對新節點套用淡入動畫。透過待處理緩衝區 (pending buffer) 解決了競爭危害 (race condition)。腳本執行方面：在工具調用結束 (<code>toolcall_end</code>) 時，將 script 標籤複製到全新的元素中。</p>
+
+        <h2>第四部分：萃取 Anthropic 的設計指南</h2>
+        <p>在瀏覽器開發者工具 (devtools) 中找到了完整的 <code>read_me</code> 逐字結果。模組大小：interactive=19K, chart=22K, mockup=19K, art=17K, diagram=59K。</p>
+        <p>關鍵規則：串流優先（樣式 → HTML → 腳本最後）、禁止使用漸層/陰影/模糊 (gradients/shadows/blur)、兩種字體粗細 (400/500)、強制暗色模式 (dark mode mandatory)、9 種色階 × 7 個停靠點 (color ramps × 7 stops)、嚴格的 SVG 規則、針對圖表的複雜度預算 (complexity budgets)。</p>
+
+        <h2>第五部分：經驗總結 (Lessons)</h2>
+        <ol>
+            <li>生成式 UI 比看起來簡單——只不過是工具調用 + DOM 注入。</li>
+            <li><code>read_me</code> 模式非常聰明——按需將文件延遲載入到上下文 (context) 中。</li>
+            <li>DOM 差異比對解決了串流的流暢度問題。</li>
+            <li>Glimpse 搭起了終端機與瀏覽器之間的橋樑。</li>
+            <li>正規化的串流事件 (normalized streaming events) 適用於所有 LLM 供應商。</li>
+        </ol>
+        <p>程式碼：約 350 行 TypeScript。安裝方式：</p>
+        <pre><code>pi install npm:pi-generative-ui</code></pre>
+
+        </article>
+
+        <footer>
+            <a class="back" href="index.html">← Deep Reads</a>
+        </footer>
+    </div>
+</body>
+</html>
