@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>世界模型（World Models）是什麼？為什麼 AI 圈突然都在講它？</title>
+  <link rel="stylesheet" href="../_style.css">
+  <style>
+    /* 卡片容器 */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+      margin: 24px 0;
+    }
+
+    /* 定義卡片 */
+    .def-card {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 18px 20px;
+      border-left: 4px solid;
+    }
+
+    .def-card:nth-child(1) { border-color: #7ec8e3; }
+    .def-card:nth-child(2) { border-color: #e38c7e; }
+    .def-card:nth-child(3) { border-color: #7ee38c; }
+    .def-card:nth-child(4) { border-color: #e3c87e; }
+    .def-card:nth-child(5) { border-color: #b87ee3; }
+
+    .def-card h3 {
+      font-size: 1em;
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #ffffff;
+    }
+
+    .def-card:nth-child(1) h3 { color: #7ec8e3; }
+    .def-card:nth-child(2) h3 { color: #e38c7e; }
+    .def-card:nth-child(3) h3 { color: #7ee38c; }
+    .def-card:nth-child(4) h3 { color: #e3c87e; }
+    .def-card:nth-child(5) h3 { color: #b87ee3; }
+
+    .def-card p {
+      font-size: 0.9em;
+      color: #c8c8e0;
+      margin-bottom: 10px;
+      font-style: italic;
+      line-height: 1.6;
+    }
+
+    .def-card .rep {
+      font-size: 0.82em;
+      color: #888;
+      margin-bottom: 0;
+      font-style: normal;
+    }
+
+    .def-card .rep strong {
+      color: #aaa;
+    }
+
+    /* 對比表格覆蓋樣式（深色更強） */
+    .contrast-table {
+      margin: 24px 0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .contrast-table thead th {
+      background-color: #0a0a20;
+      color: #7ec8e3;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .contrast-table tbody tr {
+      background-color: #12122a;
+    }
+
+    .contrast-table tbody tr:nth-child(even) {
+      background-color: #0e0e22;
+    }
+
+    .contrast-table td {
+      color: #e8e8f0;
+      border-color: #2a2a4a;
+    }
+
+    /* 現況 highlight box */
+    .highlight-box {
+      background: #1a1030;
+      border: 1px solid #4a2a8a;
+      border-left: 4px solid #b87ee3;
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin: 24px 0;
+    }
+
+    .highlight-box p {
+      margin-bottom: 0;
+      font-size: 0.95em;
+    }
+
+    .highlight-box .quote {
+      margin-top: 12px;
+      font-style: italic;
+      color: #c8b0e8;
+      border-left: none;
+      background: none;
+      padding: 0;
+    }
+
+    /* 共通點 */
+    .common-point {
+      background: #0d1f2d;
+      border-left: 4px solid #7ec8e3;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 20px;
+      margin: 24px 0;
+      font-size: 0.95em;
+      color: #c8e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>世界模型（World Models）是什麼？為什麼 AI 圈突然都在講它？</h1>
+      <div class="meta">
+        <span>Sushi 解析 · 2026 年 3 月 15 日</span>
+      </div>
+    </header>
+    <article>
+
+      <p>最簡單的一句話：讓 AI 在腦袋裡建立一個「現實世界的模擬器」，在行動之前先想像結果。</p>
+
+      <p>人類不需要每次試錯才能學習——你不用真的把手伸進火裡才知道會痛。因為你腦袋裡有一個「世界模型」，讓你能在心裡模擬結果。現在 AI 研究者想讓機器也有這個能力。</p>
+
+      <h2>為什麼現在突然很熱？</h2>
+
+      <p>因為 LLM 有個根本問題：它只懂「語言」，不懂「現實」。GPT-4 可以寫出完美的游泳指南，但它從來沒「感受」過水。LeCun 認為，真正的智慧必須來自對物理世界的理解，而不是語言預測。</p>
+
+      <h2>五種不同的定義</h2>
+
+      <div class="card-grid">
+        <div class="def-card">
+          <h3>① LeCun 的版本：物理世界理解</h3>
+          <p>「AI 要像嬰兒一樣從感官體驗中學習，建立世界如何運作的抽象表徵，而不是靠語言。」</p>
+          <p class="rep"><strong>代表：</strong>AMI Labs（LeCun）<br><strong>方法：</strong>JEPA</p>
+        </div>
+        <div class="def-card">
+          <h3>② 遊戲／強化學習版本：心智模擬器</h3>
+          <p>「讓 AI 在腦袋裡先模擬 1000 種可能，選最好的那條路，不需要一直跟真實環境互動。」</p>
+          <p class="rep"><strong>代表：</strong>AlphaGo、Dreamer 模型</p>
+        </div>
+        <div class="def-card">
+          <h3>③ 機器人 / 自動駕駛版本：行動前預測</h3>
+          <p>「機器人要能預測：如果我現在伸手抓這個杯子，它會怎麼動？」</p>
+          <p class="rep"><strong>代表：</strong>Boston Dynamics、Waymo、NVIDIA NemoClaw</p>
+        </div>
+        <div class="def-card">
+          <h3>④ 3D 空間理解版本：空間智慧</h3>
+          <p>「從一張照片重建整個 3D 空間，理解物件位置、深度、遮擋關係。」</p>
+          <p class="rep"><strong>代表：</strong>World Labs（Fei-Fei Li）</p>
+        </div>
+        <div class="def-card">
+          <h3>⑤ 影片生成版本：時間預測器</h3>
+          <p>「給 AI 看前幾秒影片，讓它預測接下來會發生什麼——必須理解物理規律才能生成真實的影片。」</p>
+          <p class="rep"><strong>代表：</strong>Sora、Kling、Google Veo 3</p>
+        </div>
+      </div>
+
+      <h2>五種定義對比</h2>
+
+      <table class="contrast-table">
+        <thead>
+          <tr>
+            <th>定義</th>
+            <th>代表人/公司</th>
+            <th>核心問題</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>物理世界理解</td>
+            <td>LeCun / AMI Labs</td>
+            <td>LLM 不懂真實世界</td>
+          </tr>
+          <tr>
+            <td>心智模擬器</td>
+            <td>強化學習社群</td>
+            <td>讓 AI 在腦中預演</td>
+          </tr>
+          <tr>
+            <td>行動預測</td>
+            <td>機器人/自動駕駛</td>
+            <td>動作後果預測</td>
+          </tr>
+          <tr>
+            <td>空間智慧</td>
+            <td>Fei-Fei Li / World Labs</td>
+            <td>3D 世界理解</td>
+          </tr>
+          <tr>
+            <td>影片預測</td>
+            <td>Sora、Runway</td>
+            <td>物理規律的視覺化</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="common-point">
+        共通點：都在問「AI 能不能真正理解世界的運作方式，而不只是處理符號？」
+      </div>
+
+      <h2>2026 年的現況</h2>
+
+      <div class="highlight-box">
+        <p>兩週內 <strong>AMI Labs</strong>（LeCun，$10.3 億）和 <strong>World Labs</strong>（Fei-Fei Li，$10 億）合計吸走 <strong>$20 億美元</strong>，但幾乎每家公司對「世界模型」的定義都不同。</p>
+        <p class="quote">AMI Labs CEO 自己說：「六個月後，每家公司都會叫自己世界模型來融資。」</p>
+      </div>
+
+    </article>
+    <footer>
+      <a class="back" href="../">← Deep Reads</a>
+    </footer>
+  </div>
+</body>
+</html>
