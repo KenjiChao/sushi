@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body { background: #0d0d1a; font-family: sans-serif; padding: 30px; }
+.row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+.sample { flex: 1; min-width: 200px; padding: 0; }
+.label { color: #888; font-size: 12px; margin-bottom: 6px; }
+blockquote { 
+  padding: 14px 18px; margin: 0;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  color: #e8e8f0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.c1 { border-left: 4px solid #6b8cba; }
+.c2 { border-left: 4px solid #4ecdc4; }
+.c3 { border-left: 4px solid rgba(255,255,255,0.4); }
+.c4 { border-left: 4px solid #9b8ec4; }
+.c5 { border-left: 4px solid #e07a5f; }
+.hex { color: #aaa; font-size: 11px; font-family: monospace; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div style="color:#fff;font-size:18px;margin-bottom:20px">Blockquote 顏色比較</div>
+<div class="row">
+  <div class="sample">
+    <div class="label">1. 柔和藍紫</div>
+    <blockquote class="c1">AI 正在改變我們的工作方式，這不是預言，是正在發生的現實。</blockquote>
+    <div class="hex">#6b8cba</div>
+  </div>
+  <div class="sample">
+    <div class="label">2. 淡青藍</div>
+    <blockquote class="c2">AI 正在改變我們的工作方式，這不是預言，是正在發生的現實。</blockquote>
+    <div class="hex">#4ecdc4</div>
+  </div>
+  <div class="sample">
+    <div class="label">3. 亮白</div>
+    <blockquote class="c3">AI 正在改變我們的工作方式，這不是預言，是正在發生的現實。</blockquote>
+    <div class="hex">rgba(255,255,255,0.4)</div>
+  </div>
+</div>
+<div class="row">
+  <div class="sample">
+    <div class="label">4. 淡紫</div>
+    <blockquote class="c4">AI 正在改變我們的工作方式，這不是預言，是正在發生的現實。</blockquote>
+    <div class="hex">#9b8ec4</div>
+  </div>
+  <div class="sample">
+    <div class="label">5. 珊瑚橘</div>
+    <blockquote class="c5">AI 正在改變我們的工作方式，這不是預言，是正在發生的現實。</blockquote>
+    <div class="hex">#e07a5f</div>
+  </div>
+  <div class="sample">
+    <div class="label">（現在的 灰白）</div>
+    <blockquote style="border-left: 4px solid rgba(255,255,255,0.25);padding:14px 18px;margin:0;background:rgba(255,255,255,0.06);border-radius:4px;color:#e8e8f0;font-size:14px;line-height:1.6;">AI 正在改變我們的工作方式，這不是預言，是正在發生的現實。</blockquote>
+    <div class="hex">rgba(255,255,255,0.25) 現在</div>
+  </div>
+</div>
+</body>
+</html>
