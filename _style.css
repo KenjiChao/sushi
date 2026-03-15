@@ -173,6 +173,13 @@ tbody tr:nth-child(even) {
   background-color: rgba(22, 33, 62, 0.4);
 }
 
+/* ---- 圖片響應式 ---- */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
 /* ---- Blockquote ---- */
 blockquote {
   border-left: 4px solid #e07a5f;
