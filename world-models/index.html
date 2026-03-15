@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>世界模型（World Models）是什麼？為什麼 AI 圈突然都在講它？</title>
+  <title>世界模型（World Models）深度研究報告</title>
   <link rel="stylesheet" href="../_style.css">
   <style>
     /* 卡片容器 */
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
       gap: 16px;
       margin: 24px 0;
     }
@@ -32,7 +32,6 @@
       font-size: 1em;
       margin-top: 0;
       margin-bottom: 10px;
-      color: #ffffff;
     }
 
     .def-card:nth-child(1) h3 { color: #7ec8e3; }
@@ -44,50 +43,64 @@
     .def-card p {
       font-size: 0.9em;
       color: #c8c8e0;
-      margin-bottom: 10px;
-      font-style: italic;
+      margin-bottom: 8px;
       line-height: 1.6;
     }
 
-    .def-card .rep {
+    .def-card .status {
       font-size: 0.82em;
-      color: #888;
-      margin-bottom: 0;
-      font-style: normal;
-    }
-
-    .def-card .rep strong {
       color: #aaa;
+      margin-bottom: 0;
     }
 
-    /* 對比表格覆蓋樣式（深色更強） */
-    .contrast-table {
+    /* 深色表格 */
+    .dark-table {
+      width: 100%;
+      border-collapse: collapse;
       margin: 24px 0;
       border-radius: 8px;
       overflow: hidden;
     }
 
-    .contrast-table thead th {
+    .dark-table thead th {
       background-color: #0a0a20;
       color: #7ec8e3;
       font-weight: 700;
+      padding: 12px 16px;
+      text-align: left;
       letter-spacing: 0.03em;
     }
 
-    .contrast-table tbody tr {
+    .dark-table tbody tr {
       background-color: #12122a;
     }
 
-    .contrast-table tbody tr:nth-child(even) {
+    .dark-table tbody tr:nth-child(even) {
       background-color: #0e0e22;
     }
 
-    .contrast-table td {
+    .dark-table td {
       color: #e8e8f0;
-      border-color: #2a2a4a;
+      padding: 10px 16px;
+      border-bottom: 1px solid #2a2a4a;
+      font-size: 0.9em;
     }
 
-    /* 現況 highlight box */
+    /* code block */
+    .code-block {
+      background: #0a0a1e;
+      border: 1px solid #2a2a4a;
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin: 20px 0;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.92em;
+      color: #a8d8a8;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* highlight box */
     .highlight-box {
       background: #1a1030;
       border: 1px solid #4a2a8a;
@@ -98,127 +111,328 @@
     }
 
     .highlight-box p {
-      margin-bottom: 0;
+      margin-bottom: 8px;
       font-size: 0.95em;
     }
 
-    .highlight-box .quote {
-      margin-top: 12px;
-      font-style: italic;
-      color: #c8b0e8;
-      border-left: none;
-      background: none;
-      padding: 0;
+    .highlight-box p:last-child {
+      margin-bottom: 0;
     }
 
-    /* 共通點 */
-    .common-point {
+    /* CEO 引言 highlight box */
+    .ceo-quote-box {
+      background: #1a2030;
+      border: 1px solid #2a4a8a;
+      border-left: 4px solid #7ec8e3;
+      border-radius: 8px;
+      padding: 18px 22px;
+      margin: 20px 0;
+    }
+
+    .ceo-quote-box p {
+      margin: 0;
+      font-style: italic;
+      color: #a8d0f0;
+      font-size: 1.05em;
+      line-height: 1.7;
+    }
+
+    .ceo-quote-box .attribution {
+      font-style: normal;
+      color: #6090b0;
+      font-size: 0.85em;
+      margin-top: 8px;
+      display: block;
+    }
+
+    /* section 分隔 */
+    .section-divider {
+      border: none;
+      border-top: 1px solid #2a2a4a;
+      margin: 32px 0;
+    }
+
+    /* 挑戰列表 */
+    .challenge-list {
+      list-style: none;
+      padding: 0;
+      margin: 20px 0;
+    }
+
+    .challenge-list li {
+      background: #12122a;
+      border-left: 3px solid #e38c7e;
+      border-radius: 0 6px 6px 0;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      color: #e8e8f0;
+      font-size: 0.92em;
+      line-height: 1.5;
+    }
+
+    .challenge-list li strong {
+      color: #e38c7e;
+    }
+
+    /* 陣營表格特殊樣式 */
+    .camp-table thead th {
+      background-color: #0a0a20;
+      color: #e3c87e;
+    }
+
+    /* 結論 box */
+    .conclusion-box {
       background: #0d1f2d;
       border-left: 4px solid #7ec8e3;
       border-radius: 0 8px 8px 0;
-      padding: 14px 20px;
+      padding: 18px 22px;
       margin: 24px 0;
       font-size: 0.95em;
       color: #c8e8f0;
+      line-height: 1.7;
+    }
+
+    /* LeCun 引言 */
+    blockquote.lecun {
+      background: #161630;
+      border-left: 4px solid #7ec8e3;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 20px;
+      margin: 20px 0;
+      color: #c8d8f0;
+      font-style: italic;
+      font-size: 0.95em;
+      line-height: 1.7;
+    }
+
+    blockquote.lecun cite {
+      display: block;
+      margin-top: 8px;
+      font-style: normal;
+      font-size: 0.85em;
+      color: #6090b0;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <h1>世界模型（World Models）是什麼？為什麼 AI 圈突然都在講它？</h1>
+      <h1>世界模型（World Models）深度研究報告</h1>
       <div class="meta">
         <span>Sushi 解析 · 2026 年 3 月 15 日</span>
       </div>
     </header>
     <article>
 
-      <p>最簡單的一句話：讓 AI 在腦袋裡建立一個「現實世界的模擬器」，在行動之前先想像結果。</p>
+      <h2>一、為什麼 LLM 有根本局限？</h2>
 
-      <p>人類不需要每次試錯才能學習——你不用真的把手伸進火裡才知道會痛。因為你腦袋裡有一個「世界模型」，讓你能在心裡模擬結果。現在 AI 研究者想讓機器也有這個能力。</p>
+      <p>LLM 的訓練方式是預測下一個 token，從人類文字學習統計規律。這帶來一個根本問題：<strong>語言不等於理解</strong>。</p>
 
-      <h2>為什麼現在突然很熱？</h2>
+      <p>2024 年研究從數學上證明，LLM 無法學習所有可計算函數。LeCun 的批評直接了當：</p>
 
-      <p>因為 LLM 有個根本問題：它只懂「語言」，不懂「現實」。GPT-4 可以寫出完美的游泳指南，但它從來沒「感受」過水。LeCun 認為，真正的智慧必須來自對物理世界的理解，而不是語言預測。</p>
+      <blockquote class="lecun">
+        「LLM 太侷限了，縮放 LLM 不可能達到 AGI。」
+        <cite>— Yann LeCun</cite>
+      </blockquote>
 
-      <h2>五種不同的定義</h2>
+      <h3>LLM 四大局限</h3>
 
-      <div class="card-grid">
-        <div class="def-card">
-          <h3>① LeCun 的版本：物理世界理解</h3>
-          <p>「AI 要像嬰兒一樣從感官體驗中學習，建立世界如何運作的抽象表徵，而不是靠語言。」</p>
-          <p class="rep"><strong>代表：</strong>AMI Labs（LeCun）<br><strong>方法：</strong>JEPA</p>
-        </div>
-        <div class="def-card">
-          <h3>② 遊戲／強化學習版本：心智模擬器</h3>
-          <p>「讓 AI 在腦袋裡先模擬 1000 種可能，選最好的那條路，不需要一直跟真實環境互動。」</p>
-          <p class="rep"><strong>代表：</strong>AlphaGo、Dreamer 模型</p>
-        </div>
-        <div class="def-card">
-          <h3>③ 機器人 / 自動駕駛版本：行動前預測</h3>
-          <p>「機器人要能預測：如果我現在伸手抓這個杯子，它會怎麼動？」</p>
-          <p class="rep"><strong>代表：</strong>Boston Dynamics、Waymo、NVIDIA NemoClaw</p>
-        </div>
-        <div class="def-card">
-          <h3>④ 3D 空間理解版本：空間智慧</h3>
-          <p>「從一張照片重建整個 3D 空間，理解物件位置、深度、遮擋關係。」</p>
-          <p class="rep"><strong>代表：</strong>World Labs（Fei-Fei Li）</p>
-        </div>
-        <div class="def-card">
-          <h3>⑤ 影片生成版本：時間預測器</h3>
-          <p>「給 AI 看前幾秒影片，讓它預測接下來會發生什麼——必須理解物理規律才能生成真實的影片。」</p>
-          <p class="rep"><strong>代表：</strong>Sora、Kling、Google Veo 3</p>
-        </div>
-      </div>
-
-      <h2>五種定義對比</h2>
-
-      <table class="contrast-table">
+      <table class="dark-table">
         <thead>
           <tr>
-            <th>定義</th>
-            <th>代表人/公司</th>
-            <th>核心問題</th>
+            <th>局限</th>
+            <th>根本原因</th>
+            <th>後果</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>物理世界理解</td>
-            <td>LeCun / AMI Labs</td>
-            <td>LLM 不懂真實世界</td>
+            <td>幻覺</td>
+            <td>沒有驗證的知識庫</td>
+            <td>自信地捏造事實</td>
           </tr>
           <tr>
-            <td>心智模擬器</td>
-            <td>強化學習社群</td>
-            <td>讓 AI 在腦中預演</td>
+            <td>物理推理失敗</td>
+            <td>沒有具身體驗</td>
+            <td>描述不可能的物理情境</td>
           </tr>
           <tr>
-            <td>行動預測</td>
-            <td>機器人/自動駕駛</td>
-            <td>動作後果預測</td>
+            <td>因果混淆</td>
+            <td>模式匹配，不是理解</td>
+            <td>把相關性當因果</td>
           </tr>
           <tr>
-            <td>空間智慧</td>
-            <td>Fei-Fei Li / World Labs</td>
-            <td>3D 世界理解</td>
-          </tr>
-          <tr>
-            <td>影片預測</td>
-            <td>Sora、Runway</td>
-            <td>物理規律的視覺化</td>
+            <td>時間不一致</td>
+            <td>序列 token 預測</td>
+            <td>事件順序出現矛盾</td>
           </tr>
         </tbody>
       </table>
 
-      <div class="common-point">
-        共通點：都在問「AI 能不能真正理解世界的運作方式，而不只是處理符號？」
+      <hr class="section-divider">
+
+      <h2>二、世界模型的核心概念</h2>
+
+      <p>一句話：讓 AI 在腦袋裡建立「現實世界的模擬器」，在行動之前先<strong>想像結果</strong>。</p>
+
+      <blockquote class="lecun">
+        「世界模型就是你對世界如何運作的心理模型。你可以想像一連串可能採取的行動，你的世界模型讓你能預測這些行動對世界的影響。」
+        <cite>— Yann LeCun</cite>
+      </blockquote>
+
+      <h3>LLM vs 世界模型的差別</h3>
+
+      <div class="code-block">LLM：    輸入文字      → 預測下一個 token
+世界模型：輸入物理狀態  → 預測下一個物理狀態</div>
+
+      <p>世界模型需要四個能力：<strong>預測能力</strong>、<strong>物理直覺</strong>、<strong>因果理解</strong>、<strong>持久記憶</strong>。</p>
+
+      <hr class="section-divider">
+
+      <h2>三、JEPA：LeCun 的核心技術</h2>
+
+      <p><strong>JEPA</strong>（Joint Embedding Predictive Architecture），2022 年 LeCun 提出。</p>
+
+      <h3>工作原理</h3>
+      <ol>
+        <li>輸入兩個相關的資料（例如連續影格、相鄰圖塊）</li>
+        <li>分別編碼成抽象表徵</li>
+        <li>預測模組用「上下文表徵」預測「目標表徵」</li>
+      </ol>
+
+      <h3>與生成模型的關鍵差異</h3>
+
+      <table class="dark-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>生成模型（如 Sora）</th>
+            <th>JEPA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>預測目標</td>
+            <td>像素細節</td>
+            <td>抽象表徵</td>
+          </tr>
+          <tr>
+            <td>訓練方式</td>
+            <td>重建輸入</td>
+            <td>預測上下文</td>
+          </tr>
+          <tr>
+            <td>優勢</td>
+            <td>視覺效果好</td>
+            <td>物理理解更深</td>
+          </tr>
+          <tr>
+            <td>弱點</td>
+            <td>容易幻覺出不存在的細節</td>
+            <td>輸出不直觀</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr class="section-divider">
+
+      <h2>四、五種定義的深度拆解</h2>
+
+      <div class="card-grid">
+
+        <div class="def-card">
+          <h3>定義一：物理世界理解（AMI Labs / LeCun）</h3>
+          <p>技術路線：JEPA → I-JEPA（圖像）→ V-JEPA（影片）→ 最終目標：能跑在嵌入式裝置上的物理智慧 AI</p>
+          <p class="status">現況：$10.3 億融資，尚未發布產品</p>
+        </div>
+
+        <div class="def-card">
+          <h3>定義二：心智模擬器（強化學習社群）</h3>
+          <p>DreamerV3（2023）里程碑：完全靠「在想像中學習」，從頭開始在 Minecraft 裡挖到鑽石（AI 社群的經典挑戰），可跨領域應用。</p>
+          <p class="status">原理：觀察 → 編碼潛在狀態 → 世界模型預測下一狀態 → 在想像軌跡裡訓練策略</p>
+        </div>
+
+        <div class="def-card">
+          <h3>定義三：行動前預測（機器人 / 自動駕駛）</h3>
+          <p>自動駕駛需要預測其他車輛軌跡、行人移動、路面摩擦力。</p>
+          <p class="status">NVIDIA Cosmos 平台（2025）已有 200 萬次下載，讓機器人不需要在真實世界中笨拙試錯。</p>
+        </div>
+
+        <div class="def-card">
+          <h3>定義四：空間智慧（World Labs / Fei-Fei Li）</h3>
+          <p>從單張圖片重建整個 3D 空間。World Labs 的 Marble 模型（2025 年底）：從文字 prompt 生成完整 3D 世界。</p>
+          <p class="status">定價：$0–$95 / 月</p>
+        </div>
+
+        <div class="def-card">
+          <h3>定義五：影片預測器（Sora / Kling / Google Veo 3）</h3>
+          <p>生成「看起來真實的影片」需要學物理規律。但 Scientific American 2026 年研究發現：這類模型在「區分運動軌跡」任務上準確率接近隨機。</p>
+          <p class="status">說明：學到的物理直覺很表淺。</p>
+        </div>
+
       </div>
 
-      <h2>2026 年的現況</h2>
+      <hr class="section-divider">
+
+      <h2>五、2026 年的戰場</h2>
 
       <div class="highlight-box">
-        <p>兩週內 <strong>AMI Labs</strong>（LeCun，$10.3 億）和 <strong>World Labs</strong>（Fei-Fei Li，$10 億）合計吸走 <strong>$20 億美元</strong>，但幾乎每家公司對「世界模型」的定義都不同。</p>
-        <p class="quote">AMI Labs CEO 自己說：「六個月後，每家公司都會叫自己世界模型來融資。」</p>
+        <p>兩週吸走 <strong>$20 億</strong>：AMI Labs（LeCun）$10.3 億 + World Labs（Fei-Fei Li）$10 億</p>
+      </div>
+
+      <h3>三個陣營</h3>
+
+      <table class="dark-table camp-table">
+        <thead>
+          <tr>
+            <th>陣營</th>
+            <th>代表</th>
+            <th>核心信念</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>LLM 縮放派</td>
+            <td>OpenAI、Anthropic</td>
+            <td>足夠大的 LLM 會自然涌現世界理解</td>
+          </tr>
+          <tr>
+            <td>世界模型派</td>
+            <td>LeCun、Fei-Fei Li</td>
+            <td>需要全新架構，不能靠縮放</td>
+          </tr>
+          <tr>
+            <td>混合派</td>
+            <td>Google DeepMind</td>
+            <td>結合兩者（Genie 3、Gemini multimodal）</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="ceo-quote-box">
+        <p>「六個月內，每家公司都會說自己在做世界模型來融資。」</p>
+        <span class="attribution">— AMI Labs CEO</span>
+      </div>
+
+      <hr class="section-divider">
+
+      <h2>六、目前的真實挑戰</h2>
+
+      <ul class="challenge-list">
+        <li><strong>資料問題：</strong>需要帶有動作標記的感官資料，比純文字難收集太多</li>
+        <li><strong>計算成本：</strong>模擬物理世界遠比預測文字貴</li>
+        <li><strong>泛化問題：</strong>一個環境學到的物理規律，很難遷移到另一個環境</li>
+        <li><strong>評估困難：</strong>沒有好的 benchmark 衡量「真正理解物理」</li>
+        <li><strong>時間視野：</strong>現有模型只能預測短期未來，長期規劃仍是挑戰</li>
+      </ul>
+
+      <hr class="section-divider">
+
+      <h2>七、小結</h2>
+
+      <div class="conclusion-box">
+        <p>世界模型代表 AI 從「語言的統計學家」進化成「能理解現實的智慧體」的路徑。LeCun 說 3–5 年內 AMI 會開始和企業夥伴合作。</p>
+        <p style="margin-top: 12px; margin-bottom: 0;">現實情況是：目前最接近「真實世界模型」的，可能還是那些在 Minecraft 裡挖鑽石的強化學習 agent——而不是那些拿著幾十億美元、但還沒有產品的新創公司。</p>
       </div>
 
     </article>
