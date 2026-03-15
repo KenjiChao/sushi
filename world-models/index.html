@@ -212,6 +212,16 @@
       font-size: 0.85em;
       color: #6090b0;
     }
+
+  .further-reading { margin-top: 48px; }
+  .reading-list { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+  .reading-item { display: flex; gap: 16px; padding: 16px; background: rgba(255,255,255,0.04); border-radius: 8px; }
+  .reading-level { font-size: 11px; font-weight: bold; padding: 4px 10px; border-radius: 4px; height: fit-content; white-space: nowrap; }
+  .reading-level.green { background: rgba(107,207,127,0.2); color: #6bcf7f; }
+  .reading-level.yellow { background: rgba(247,201,72,0.2); color: #f7c948; }
+  .reading-level.red { background: rgba(224,122,95,0.2); color: #e07a5f; }
+  .reading-content h3 { margin: 0 0 8px 0; font-size: 15px; color: #fff; }
+  .reading-content p { margin: 0 0 8px 0; font-size: 14px; color: #aaa; line-height: 1.6; }
   </style>
 </head>
 <body>
@@ -555,9 +565,73 @@
       </div>
 
     </article>
+
+    <section class="further-reading">
+  <h2>延伸閱讀</h2>
+  <p>按難度由淺到深，建議的閱讀順序：</p>
+
+  <div class="reading-list">
+
+    <div class="reading-item">
+      <div class="reading-level green">入門</div>
+      <div class="reading-content">
+        <h3>1. World Models — Ha &amp; Schmidhuber (2018)</h3>
+        <p>奠基之作。用 Car Racing 遊戲示範「在腦海中練習」的概念。有互動網站版本，圖文並茂，最容易入門。</p>
+        <a href="https://worldmodels.github.io" target="_blank" class="source-link-inline">閱讀 →</a>
+      </div>
+    </div>
+
+    <div class="reading-item">
+      <div class="reading-level green">入門</div>
+      <div class="reading-content">
+        <h3>2. LeCun 公開演講（NVIDIA GTC）</h3>
+        <p>比論文好讀，LeCun 完整說明他對 LLM 的批評、JEPA 的概念，以及他認為 AGI 應該走的路。YouTube 有影片。</p>
+        <a href="https://www.youtube.com/watch?v=OKkEdTchsiE" target="_blank" class="source-link-inline">觀看 →</a>
+      </div>
+    </div>
+
+    <div class="reading-item">
+      <div class="reading-level yellow">中級</div>
+      <div class="reading-content">
+        <h3>3. A Path Towards Autonomous Machine Intelligence — LeCun (2022)</h3>
+        <p>LeCun 最完整闡述 AGI 路徑的白皮書，包含 JEPA 完整框架。可讀性比一般論文好，建議挑感興趣的章節讀。</p>
+        <a href="https://openreview.net/pdf?id=BZ5a1r-kVsf" target="_blank" class="source-link-inline">閱讀 PDF →</a>
+      </div>
+    </div>
+
+    <div class="reading-item">
+      <div class="reading-level yellow">中級</div>
+      <div class="reading-content">
+        <h3>4. Mastering Diverse Domains through World Models — DreamerV3 (2023)</h3>
+        <p>Hafner et al. 的論文。150+ 個不同任務用同一個算法，包含從頭在 Minecraft 挖到鑽石。看 abstract 和 introduction 就能理解突破在哪。</p>
+        <a href="https://arxiv.org/abs/2301.04104" target="_blank" class="source-link-inline">閱讀論文 →</a>
+      </div>
+    </div>
+
+    <div class="reading-item">
+      <div class="reading-level red">深入</div>
+      <div class="reading-content">
+        <h3>5. Self-Supervised Learning from Images with a Joint-Embedding Predictive Architecture — I-JEPA (2023)</h3>
+        <p>JEPA 的第一個具體實作（圖像版），比純生成式方法學到更好的語意表徵。</p>
+        <a href="https://arxiv.org/abs/2301.08243" target="_blank" class="source-link-inline">閱讀論文 →</a>
+      </div>
+    </div>
+
+    <div class="reading-item">
+      <div class="reading-level red">深入</div>
+      <div class="reading-content">
+        <h3>6. Consciousness Explained — Daniel Dennett（書）</h3>
+        <p>如果你想搞清楚「感質（qualia）」和「意識的難問題」——也就是「能預測 ≠ 能感受」——這本書是最好的入門。不是 AI 的書，但對理解 AI 的邊界非常有幫助。</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
     <footer>
       <a class="back" href="../">← Deep Reads</a>
     </footer>
   </div>
 </body>
 </html>
+
