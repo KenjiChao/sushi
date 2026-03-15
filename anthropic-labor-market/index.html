@@ -53,7 +53,7 @@
 <p>話雖如此，這些理論能力和實際使用情況的衡量指標是高度相關的。如圖 1 所示，在前四份《經濟指數》報告中觀察到的任務中，有 97% 屬於 Eloundou 等人評定為理論上可行的類別（β=0.5 或 β=1.0）。</p>
 
 <figure>
-  <img src="https://cdn.sanity.io/images/4zrzovbb/website/82875b7baf5f340809b9f9ff4d0b04bcfd81b1c6-1800x1200.png" alt="Figure 1">
+  <img src="img1.png" alt="Figure 1">
   <figcaption>圖 1：按 Eloundou 等人任務暴露度評分劃分的 Claude 使用量比例。這張圖表顯示了 Claude 的使用情況分佈在 O*NET 任務中，並根據其理論上的 AI 暴露度進行分組。被評為 β=1（LLM 可以單獨完成）的任務佔了觀察到的 Claude 使用量的 68%，而被評為 β=0（不可行）的任務僅佔 3%。關於 Claude 使用量的數據來自前四份《經濟指數》報告。</figcaption>
 </figure>
 
@@ -70,7 +70,7 @@
 <p>圖 2 顯示了觀察到的暴露度（紅色）與 Eloundou 等人的 β（藍色）的比較，說明了我們平台上理論與實際使用之間的差異，並按廣泛的職業類別分組。我們計算的方法是：首先以我們的時間比例衡量指標作為權重平均到職業層面，然後以總就業人數作為權重平均到職業類別。例如，β 指標顯示，電腦與數學（94%）以及辦公室與行政（90%）職業的大部分任務都有 LLM 滲透的空間。</p>
 
 <figure>
-  <img src="https://cdn.sanity.io/images/4zrzovbb/website/ffbd558778fdfc501170eb55a805c74fc9d9a16f-1800x1200.png" alt="Figure 2">
+  <img src="img2.png" alt="Figure 2">
   <figcaption>圖 2：按職業類別劃分的理論能力和觀察到的暴露度。藍色區域為 LLM 理論上可以執行的工作任務比例，紅色區域為我們從使用數據中得出的工作覆蓋率指標。紅色區域描繪了來自 Anthropic 經濟指數的 LLM 使用情況，顯示人們在專業環境中如何使用 Claude。覆蓋率顯示 AI 距離達到其理論能力還有很長一段路。例如，Claude 目前僅涵蓋了電腦與數學類別中 33% 的任務。</figcaption>
 </figure>
 
@@ -79,7 +79,7 @@
 <p>圖 3 顯示了在此指標下暴露度最高的十種職業。與其他顯示 Claude 被廣泛用於寫程式的數據一致，電腦程式設計師（Computer Programmers）位居榜首，覆蓋率達 75%，其次是客戶服務代表（Customer Service Representatives），我們越來越多地在第一方 API 流量中看到他們的主要任務。最後，資料輸入員（Data Entry Keyers）的覆蓋率為 67%，他們閱讀原始文件並輸入資料的主要任務已出現顯著的自動化。</p>
 
 <figure>
-  <img src="https://cdn.sanity.io/images/4zrzovbb/website/21d0dcdad2b4a1154c153eb3c0df985c5ed9846d-1800x1200.png" alt="Figure 3">
+  <img src="img3.png" alt="Figure 3">
   <figcaption>圖 3：暴露度最高的職業。使用我們的任務覆蓋率指標，暴露度最高的前十種職業。</figcaption>
 </figure>
 
@@ -92,14 +92,14 @@
 <p>以當前就業人數加權的職業層面迴歸分析發現，對於觀察到的暴露度較高的工作，其增長預測略弱。覆蓋率每增加 10 個百分點，BLS 的增長預測就會下降 0.6 個百分點。這提供了一些驗證，因為我們的指標追蹤了勞動市場分析師獨立得出的估計，儘管這種關係很微弱。有趣的是，如果單獨使用 Eloundou 等人的指標，則不存在這樣的相關性。</p>
 
 <figure>
-  <img src="https://cdn.sanity.io/images/4zrzovbb/website/35552dbda2a1ab3ffb0bb5bb2f6afc4b267ca6af-1800x1200.png" alt="Figure 4">
+  <img src="img4.png" alt="Figure 4">
   <figcaption>圖 4：BLS 預計的 2024-2034 年就業增長與觀察到的暴露度對比。包含 25 個等距區間的分箱散點圖。每個實心點顯示該區間的平均觀察暴露度與預期就業變化。虛線顯示了以當前就業水準加權的簡單線性迴歸擬合。小菱形標記了個別的職業範例以供說明。</figcaption>
 </figure>
 
 <p>圖 5 顯示了 ChatGPT 發布前三個月（2022 年 8 月至 10 月）暴露度最高的前四分之一工作者與 30% 零暴露度工作者的特徵。這兩個群體差異很大。暴露度較高的群體中，女性的可能性高出 16 個百分點，白人的可能性高出 11 個百分點，而亞洲人的可能性幾乎是兩倍。他們的平均收入高出 47%，並且教育程度更高。例如，擁有研究所學位的人在未暴露群體中佔 4.5%，但在最高暴露群體中佔 17.4%，相差近四倍。</p>
 
 <figure>
-  <img src="https://cdn.sanity.io/images/4zrzovbb/website/5ee4a4c5f963c6317bc2d2165c010c7ab88ca8c8-1800x1200.png" alt="Figure 5">
+  <img src="img5.png" alt="Figure 5">
   <figcaption>圖 5：高暴露度與低暴露度工作者之間的差異，資料來自當期人口調查（Current Population Survey）。</figcaption>
 </figure>
 
@@ -118,7 +118,7 @@
 <p>圖 6 的上半部顯示了自 2016 年以來，處於最高暴露度四分之一的工作者和未暴露群體的原始失業率趨勢。在 COVID 期間，受 AI 影響較小的工作者（他們更有可能從事面對面的工作）的失業率上升幅度要大得多。自那時起，這兩組之間的趨勢在很大程度上是相似的。下半部在雙重差分框架（difference-in-differences framework）中測量了暴露度最高和最低工作者之間的差距大小。自 ChatGPT 發布以來，差距的平均變化很小且不顯著，這表明暴露度較高群體的失業率略有上升，但影響與零無異。</p>
 
 <figure>
-  <img src="https://cdn.sanity.io/images/4zrzovbb/website/8ec71d0e53a2512a884cdb15d2a4d334ddbb50f0-1800x1200.png" alt="Figure 6">
+  <img src="img6.png" alt="Figure 6">
   <figcaption>圖 6：最高觀察暴露度四分之一與無 AI 暴露度工作者的失業率趨勢。上半部顯示了處於最高暴露度四分之一的工作者（紅線）與 30% 零暴露度工作者的失業率。下半部在雙重差分框架中測量了這兩個時間序列之間的差距。</figcaption>
 </figure>
 
@@ -131,7 +131,7 @@
 <p>我們發現，暴露職業中年輕工作者的失業率持平。但招募放緩不一定表現為失業率增加。為了解決直接招募的問題，我們計算隨時間推移，開始在較高與較低暴露度職業中從事新工作的年輕（22-25 歲）工作者百分比。圖 7 顯示了年輕工作者的每月就業率，並根據他們是進入高暴露度還是低暴露度職業進行劃分。</p>
 
 <figure>
-  <img src="https://cdn.sanity.io/images/4zrzovbb/website/a755d0a6534571e72e272a08dc32092f6d2b59de-1800x1200.png" alt="Figure 7">
+  <img src="img7.png" alt="Figure 7">
   <figcaption>圖 7：22-25 歲工作者在高觀察暴露度與無 AI 暴露度職業中的新工作開始情況。上半部顯示了開始在高暴露度與無暴露度職業中從事新工作的年輕工作者百分比。下半部在雙重差分框架中測量了這兩個時間序列之間的差距。</figcaption>
 </figure>
 
