@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>世界模型（World Models）——Ha & Schmidhuber 2018</title>
+  <link rel="stylesheet" href="../_style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>世界模型（World Models）——Ha & Schmidhuber 2018</h1>
+      <div class="meta">
+        <span>Ha & Schmidhuber · 2018 年</span> · <a href="https://worldmodels.github.io/" target="_blank" class="source-link-inline">閱讀原文 →</a>
+      </div>
+    </header>
+    <article>
+
+<h2>世界模型 (World Models)</h2>
+<p><strong>代理人能在自己的夢境中學習嗎？</strong></p>
+
+<h3>摘要 (Abstract)</h3>
+<p>我們探索了為熱門的強化學習環境建立生成式神經網路模型（generative neural network models）。我們的「世界模型」（world model）能夠以非監督式的方式快速訓練，學習環境在空間與時間上的壓縮表徵（compressed spatial and temporal representation）。藉由將世界模型提取的特徵作為代理人（agent）的輸入，我們可以訓練出一個非常精簡且簡單的策略來解決所需的任務。我們甚至可以讓代理人完全在由其世界模型生成的「夢境」環境中進行訓練，並將這個策略轉移回真實的環境中。</p>
+
+<h3>簡介 (Introduction)</h3>
+<img src="https://worldmodels.github.io/assets/world_model_comic.jpeg" style="display: block; margin: auto; width: 100%;" alt="世界模型，取自 Scott McCloud 的《了解漫畫》" />
+<p style="text-align:center; font-size:0.9em; color:#666;">世界模型，取自 Scott McCloud 的《了解漫畫》（Understanding Comics）。</p>
+
+<p>人類會根據有限感官所能感知到的事物，在腦中建立一個對世界的「心智模型」（mental model）。我們所做的決策和行動都是基於這個內部模型。系統動力學之父 Jay Wright Forrester 曾這樣描述心智模型：</p>
+<blockquote>
+<p>「我們在腦海中對周遭世界的想像，只不過是一個模型。沒有人能在腦海中想像出整個世界、政府或國家的全貌。他只是選擇了特定的概念以及它們之間的關係，並用這些來代表真實系統。」</p>
+</blockquote>
+
+<p>為了處理日常生活中湧入的大量資訊，我們的大腦會學習這些資訊在空間與時間層面上的抽象表徵。我們能夠觀察一個場景，並記住對其抽象的描述。證據也顯示，我們在任何特定時刻所感知到的事物，其實受到大腦根據內部模型對未來的預測所主導。</p>
+
+<img src="https://worldmodels.github.io/assets/kitaoka.jpeg" style="display: block; margin: auto; width: 100%;" alt="我們所看到的基於大腦對未來的預測" />
+<p style="text-align:center; font-size:0.9em; color:#666;">我們所看到的，是基於我們大腦對未來的預測。</p>
+
+<p>理解我們大腦內部這個預測模型的一種方式是，它可能不只是在普遍地預測未來，而是在給定我們當前運動行為的情況下，預測未來的感官數據。我們能夠本能地根據這個預測模型採取行動，在面臨危險時表現出快速的反射行為，而不需要有意識地規劃行動方案。</p>
+
+<p>以棒球為例。棒球打擊者只有幾毫秒的時間來決定該如何揮棒——這比視覺訊號從眼睛傳到大腦的時間還要短。我們之所以能擊中時速 100 英里的快速球，是因為我們有本能地預測球何時會到達何處的能力。對於職業球員來說，這一切都是在潛意識中發生的。他們的肌肉會根據內部模型的預測，反射性地在正確的時間和位置揮棒。他們可以迅速根據對未來的預測採取行動，而不需要有意識地推演未來可能的情況來制定計劃。</p>
+
+<img src="https://worldmodels.github.io/assets/mccloud_baseball.jpeg" style="display: block; margin: auto; width: 100%;" alt="閱讀漫畫時在空間上感知時間" />
+<p style="text-align:center; font-size:0.9em; color:#666;">我們在閱讀漫畫時，學會了在空間上感知時間。漫畫家兼漫畫理論家 Scott McCloud 表示：「在漫畫的世界裡，時間和空間是同一回事。」藝術 © Scott McCloud。</p>
+
+<p>在許多強化學習（RL）問題中，人工代理人同樣也能透過擁有過去與現在狀態的良好表徵，以及對未來的優良預測模型而獲益，特別是如果能在通用電腦上實作一個強大的預測模型（例如遞迴神經網路，RNN）就更好了。</p>
+
+<p>大型 RNN 是極具表現力的模型，能夠學習數據中豐富的時空表徵。然而，文獻中許多「無模型」（model-free）的 RL 方法往往只使用參數很少的小型神經網路。RL 演算法經常受限於「信用分配問題」（credit assignment problem，即在序列的最後才給出回饋，難以判斷哪個步驟應對最終結果負責），這使得傳統 RL 演算法難以學習大型模型中數以百萬計的權重。因此在實務上，通常會使用較小的網路，因為它們在訓練過程中能更快迭代出一個良好的策略。</p>
+
+<p>理想情況下，我們希望能有效率地訓練基於大型 RNN 的代理人。反向傳播演算法（Backpropagation algorithm）可以用來有效率地訓練大型神經網路。在這項研究中，我們嘗試透過將代理人分為一個大型的「世界模型」和一個小型的「控制器模型」來訓練大型神經網路以解決 RL 任務。我們首先以非監督式的方式訓練一個大型神經網路，讓它學習代理人所在世界的模型；接著再訓練較小的控制器模型，讓它學習利用這個世界模型來執行任務。小型的控制器能讓訓練演算法專注於在小搜尋空間中的信用分配問題，同時又不會犧牲大型世界模型帶來的容量與表現力。透過從其世界模型的視角來訓練代理人，我們展示了它可以學習到一個極其精簡的策略來執行任務。</p>
+
+<p>在本文中，我們結合了 1990 年至 2015 年間一系列關於 RNN 世界模型與控制器論文中的幾個關鍵概念，以及近期機率建模的工具，提出了一個簡化的方法來在現代 RL 環境中測試這些關鍵概念。實驗顯示，我們的方法可用於解決一個具挑戰性的「從像素畫面進行賽車導航」任務，而這個任務以往難以用更傳統的方法解決。</p>
+
+<p>現有大多數的「基於模型」（model-based）的 RL 方法雖然會學習 RL 環境的模型，但仍然在真實環境中進行訓練。在這裡，我們也探索了完全用生成環境取代真實 RL 環境的做法：讓代理人的控制器只在由其內部世界模型生成的環境中進行訓練，然後將這個策略轉移回真實環境。</p>
+
+<p>為了克服代理人利用生成環境的不完美之處進行作弊的問題，我們調整了內部世界模型的一個「溫度參數」（temperature parameter），藉此控制生成環境的不確定性程度。我們讓代理人的控制器在一個雜訊更多、不確定性更高的生成環境中進行訓練，並證明這種方法有助於防止代理人利用其內部世界模型的缺陷。我們也將討論基於模型的 RL 文獻中其他具有類似「學習動態模型並利用該模型訓練代理人」想法的相關研究。</p>
+
+<h3>代理人模型 (Agent Model)</h3>
+<p>我們提出了一個受人類自身認知系統啟發的簡單模型。在這個模型中，我們的代理人擁有一個視覺感官元件，可以將它所看到的內容壓縮成一個小型的表徵代碼（code）。它還有一個記憶元件，會根據歷史資訊對未來的代碼進行預測。最後，我們的代理人有一個決策元件，它僅僅根據視覺與記憶元件所創建的表徵來決定要採取什麼行動。</p>
+
+<img src="https://worldmodels.github.io/assets/world_model_overview.svg" style="display: block; margin: auto; width: 720px; max-width: 100%;" alt="我們的代理人包含三個緊密合作的元件：視覺 (V)、記憶 (M) 和控制器 (C)。" />
+<p style="text-align:center; font-size:0.9em; color:#666;">我們的代理人包含三個緊密合作的元件：視覺（V）、記憶（M）和控制器（C）。</p>
+
+<h4>變分自編碼器 (VAE, V) 模型</h4>
+<p>環境在每個時間步提供我們代理人一個高維度的輸入觀察值。這個輸入通常是視訊序列中的一個 2D 影像幀。V 模型的作用是學習每一個觀察輸入幀的抽象且壓縮的表徵。</p>
+
+<img src="https://worldmodels.github.io/assets/vae.svg" style="display: block; margin: auto; width: 100%;" alt="變分自編碼器的流程圖" />
+<p style="text-align:center; font-size:0.9em; color:#666;">變分自編碼器的流程圖。</p>
+
+<p>在我們的實驗中，我們使用變分自編碼器（Variational Autoencoder, VAE）作為 V 模型。V 模型在時間步 $t$ 將它接收到的每一幀影像壓縮成一個低維度的潛在向量（latent vector） $z_t$。這個壓縮後的表徵可以用來重建原始影像。</p>
+
+<h4>MDN-RNN (M) 模型</h4>
+<p>雖然 V 模型的作用是在每個時間幀壓縮代理人所見的內容，我們也希望壓縮在時間維度上發生的事。為此，M 模型的作用就是預測未來。M 模型作為 V 模型預期會產生的未來 $z$ 向量的預測模型。由於許多複雜環境本質上具有隨機性（stochastic），我們訓練我們的 RNN 輸出一種機率密度函數 $p(z)$，而不是對 $z$ 的確定性預測。</p>
+
+<img src="https://worldmodels.github.io/assets/mdn_rnn_new.svg" style="display: block; margin: auto; width: 80%;" alt="RNN 結合混合密度網路輸出層" />
+<p style="text-align:center; font-size:0.9em; color:#666;">帶有混合密度網路（MDN）輸出層的 RNN。MDN 輸出混合高斯分布的參數，用於對下一個潛在向量 $z$ 的預測進行採樣。</p>
+
+<p>在我們的方法中，我們將 $p(z)$ 近似為混合高斯分布（mixture of Gaussian distribution），並訓練 RNN 根據給定的當前和過去資訊，輸出下一個潛在向量 $z_{t+1}$ 的機率分布。</p>
+
+<p>更具體地說，RNN 將建立 $P(z_{t+1} | a_t, z_t, h_t)$ 的模型，其中 $a_t$ 是時間 $t$ 採取的動作，$h_t$ 是時間 $t$ 時 RNN 的隱藏狀態。在採樣過程中，我們可以調整一個溫度參數 $\tau$ 來控制模型的不確定性——我們稍後會發現，調整 $\tau$ 對於訓練我們的控制器非常有用。</p>
+
+<p>這種方法被稱為混合密度網路結合 RNN（MDN-RNN），過去已成功應用於諸如產生手寫字和草圖等序列生成問題。</p>
+
+<h4>控制器 (C) 模型</h4>
+<p>控制器（C）模型負責決定要採取的行動方針，以最大化代理人在環境展開（rollout）期間的預期累積獎勵。在我們的實驗中，我們刻意讓 C 盡可能簡單且小巧，並且與 V 和 M 分開訓練，使得我們代理人的大部分複雜度保留在世界模型（V 和 M）中。</p>
+
+<p>C 是一個簡單的單層線性模型，在每個時間步將 $z_t$ 和 $h_t$ 直接映射到動作 $a_t$：</p>
+<p style="text-align:center;">$a_t = W_c [z_t \; h_t] + b_c$</p>
+
+<p>在這個線性模型中，$W_c$ 和 $b_c$ 是將串接的輸入向量 $[z_t \; h_t]$ 映射到輸出動作向量 $a_t$ 的權重矩陣和偏差向量。</p>
+
+<h4>將一切整合在一起</h4>
+<p>下方的流程圖說明了 V、M 和 C 如何與環境互動：</p>
+
+<img src="https://worldmodels.github.io/assets/world_model_schematic.svg" style="display: block; margin: auto; width: 65%;" alt="代理人模型的流程圖" />
+<p style="text-align:center; font-size:0.9em; color:#666;">我們代理人模型的流程圖。原始觀察值首先在每個時間步 $t$ 由 V 進行處理以產生 $z_t$。輸入 C 的是將這個潛在向量 $z_t$ 與 M 在該時間步的隱藏狀態 $h_t$ 串接起來的結果。接著 C 會輸出一個動作向量 $a_t$ 進行運動控制。然後 M 會將目前的 $z_t$ 和動作 $a_t$ 當作輸入，以更新它自己的隱藏狀態，從而產生供時間步 $t+1$ 使用的 $h_{t+1}$。</p>
+
+<p>對 C 使用如此簡約的設計也帶來了重要的實用效益。只要我們能定義出表現良好、可微分的損失函數，深度學習的進展就為我們提供了有效訓練大型複雜模型的工具。我們的 V 和 M 模型設計為可以使用現代 GPU 加速器透過反向傳播演算法有效訓練，因此我們希望模型的大部分複雜度及參數都集中在 V 和 M 之中。相較之下，作為線性模型的 C 的參數數量微乎其微。這個選擇允許我們探索較非傳統的方式來訓練 C——例如，甚至使用演化策略（Evolution Strategies, ES）來解決信用分配問題較為困難的更具挑戰性的 RL 任務。</p>
+
+<p>為了優化 C 的參數，我們選擇共變異數矩陣適應演化策略（CMA-ES）作為最佳化演算法，因為它已知在參數達幾千個的解空間中表現良好。我們在一台擁有多個 CPU 核心的單一機器上演化 C 的參數，平行執行多個環境的 rollout。</p>
+
+<h3>賽車實驗：用於特徵提取的世界模型 (Car Racing Experiment: World Model for Feature Extraction)</h3>
+<p>一個預測性的世界模型可以幫助我們提取空間和時間的有用表徵。藉由將這些特徵作為控制器的輸入，我們可以訓練一個精簡且最小的控制器來執行連續控制任務，例如學習從像素輸入駕駛俯視賽車環境（top-down car racing environment）。在本節中，我們將描述如何訓練前面提到的代理人模型來解決賽車任務。據我們所知，我們的代理人是第一個達到解決此任務所需分數的已知解決方案。我們發現這個任務很有趣，因為雖然訓練代理人在隨機生成的賽道上搖搖晃晃並獲得平庸的分數並不困難，但 CarRacing-v0 將「解決」定義為在 100 次連續試驗中獲得平均獎勵 900 分，這意味著代理人幾乎沒有犯錯的空間。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/carracing_z_and_h.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+<p style="text-align:center; font-size:0.9em; color:#666;">我們的代理人學習在俯視賽車環境中導航。</p>
+
+<p>在這個環境中，每次試驗的賽道都是隨機生成的，而代理人的目標是以最短的時間拜訪盡可能多的賽道區塊。代理人控制三個連續動作：左/右轉向、加速和剎車。</p>
+
+<p>為了訓練我們的 V 模型，我們首先從隨機策略中收集 10,000 次環境的 rollout。我們讓代理人隨機探索環境多次，記錄所採取的隨機動作 $a_t$ 以及產生的環境觀察。我們使用這個數據集來訓練 V 模型以學習每一幀的潛在空間。我們訓練 VAE 將每一幀編碼為低維度的潛在向量 $z$，並透過最小化原始幀和從 $z$ 解碼重建的幀之間的差異。訓練結果顯示，雖然在這個有損壓縮過程中丟失了細節，但潛在向量 $z$ 捕捉到了每個 $64\times64$ 像素影像幀的本質。</p>
+
+<img src="https://worldmodels.github.io/assets/carracing.svg" style="display: block; margin: auto; width: 100%;" alt="CarRacing" />
+
+<p>現在我們可以使用訓練好的 V 模型將時間步 $t$ 的每一幀預處理成 $z_t$，然後用它來訓練我們的 M 模型。結合所記錄的隨機動作 $a_t$，我們的 MDN-RNN 現在可以被訓練來將 $P(z_{t+1} | a_t, z_t, h_t)$ 建構為高斯混合模型。在實務上，我們發現分別訓練 V 和 M 是最實用且能獲得良好結果的方法，而且不需要過多調整超參數。因為訓練 M 模型不需要影像，我們甚至可以在單一 GPU 上批次訓練整個 episode（1000 幀）的長序列潛在向量。</p>
+
+<p>在這個實驗中，世界模型（V 和 M）對環境的實際獎勵訊號一無所知。它的任務只是壓縮和預測觀察到的影像幀序列。只有控制器（C）模型能存取環境的獎勵資訊。因為線性控制器模型中僅有 867 個參數，像 CMA-ES 這樣的演化演算法非常適合這項優化任務。</p>
+
+<h4>步驟 (Procedure)</h4>
+<p>總結賽車實驗的步驟如下：</p>
+<ol>
+<li>從隨機策略收集 10,000 次 rollout。</li>
+<li>訓練 VAE (V) 將每一幀編碼成潛在向量 $z \in \mathcal{R}^{32}$。</li>
+<li>訓練 MDN-RNN (M) 建立模型 $P(z_{t+1} | a_t, z_t, h_t)$。</li>
+<li>演化控制器 (C) 以最大化 rollout 的預期累積獎勵。</li>
+</ol>
+
+<h4>賽車實驗結果 (Car Racing Experiment Results)</h4>
+
+<p><strong>僅使用 V 模型 (V Model Only)</strong><br />
+如果我們有良好的觀察表徵，訓練代理人開車並非難事。我們先測試讓控制器只能存取 V 而不能存取 M，因此我們將控制器定義為 $a_t = W_c z_t + b_c$。<br />
+雖然代理人仍能在賽道上導航，但我們注意到它會搖搖晃晃，並在較急的彎道衝出賽道。這個「受限」的代理人在 100 次隨機試驗中獲得的平均分數為 $632 \pm 251$，這與 OpenAI Gym 排行榜上其他代理人以及傳統深度 RL 方法（如 A3C）的表現一致。在 C 的策略網路中加入一個隱藏層能將結果提升至 $788 \pm 141$，但仍不足以解決這個環境。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/carracing_z_only.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+
+<p><strong>完整的世界模型 (V 和 M)</strong><br />
+由 V 模型提供的表徵 $z_t$ 只捕捉了特定時刻的狀態，並沒有太多的預測能力。相反地，M 被訓練來做一件事，而且做得非常好，那就是預測 $z_{t+1}$。由於 M 對 $z_{t+1}$ 的預測是從時間 $t$ 的 RNN 隱藏狀態 $h_t$ 產生的，這個向量是提供給代理人的已學習特徵的良好候選者。將 $z_t$ 與 $h_t$ 結合，讓我們的控制器 C 同時擁有對當前觀察的良好表徵，以及對未來的預期。</p>
+
+<p>的確，我們發現允許代理人同時存取 $z_t$ 和 $h_t$ 大幅提升了它的駕駛能力。駕駛變得更穩定，代理人似乎能有效地應付急轉彎。此外，我們看到在賽車過程中做出這些快速的反射性駕駛決策時，代理人並不需要事先規劃並推演未來可能的情境。因為 $h_t$ 包含了關於未來機率分布的資訊，代理人只需本能地詢問 RNN 來引導它的行動決策。就像經驗豐富的一級方程式賽車手或前面討論過的棒球員，代理人可以本能地在激烈的瞬間預測何時何地該如何導航。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/carracing_z_and_h.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+
+<p>我們的代理人在 100 次隨機試驗中獲得了 $906 \pm 21$ 的分數，有效地解決了這個任務並取得了最新的技術水準（state of the art）結果。據我們所知，我們的方法是第一個解決這個任務的報告方案。</p>
+
+<h4>賽車夢境 (Car Racing Dreams)</h4>
+<p>由於我們的世界模型能夠模擬未來，我們也能讓它自己想出假設性的賽車場景。我們可以要求它根據當前狀態產生 $z_{t+1}$ 的機率分布，對 $z_{t+1}$ 進行採樣，並將此樣本作為真實觀察值。我們可以將訓練好的 C 放回這個由 M 生成的夢境環境中。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/carracing_mistake_short.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+<p style="text-align:center; font-size:0.9em; color:#666;">代理人在自己生成的夢境世界中駕駛。</p>
+
+<p>我們剛剛看到，在真實環境中學習到的策略似乎在某種程度上也能在夢境環境中運作。這不禁讓人思考——我們能否訓練代理人在自己的夢境中學習，並將這個策略轉移回真實環境？</p>
+
+<h3>VizDoom 實驗：在夢境中學習 (VizDoom Experiment: Learning Inside of a Dream)</h3>
+
+<p>如果我們的世界模型對其目的來說足夠準確，並且對手頭的問題來說足夠完整，我們應該能夠用這個世界模型取代真實的環境。畢竟，我們的代理人並不直接觀察現實，而只看到世界模型讓它看到的內容。在這個實驗中，我們在由訓練用來模仿 VizDoom 環境的世界模型所生成的夢境環境中訓練代理人。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/doom_real_deploy.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+<p style="text-align:center; font-size:0.9em; color:#666;">我們最終的代理人解決了 VizDoom: Take Cover 環境。</p>
+
+<p>代理人必須學會躲避從房間另一邊射來的火球。這個環境中沒有明確的獎勵，所以為了模擬自然選擇，累積獎勵可以定義為代理人在 rollout 期間存活的時間步數。環境中的每個 rollout 最多運行 2100 個時間步（約 60 秒），如果在 100 次連續 rollout 中的平均存活時間大於 750 個時間步（約 20 秒），任務就被視為已解決。</p>
+
+<h4>步驟 (Procedure)</h4>
+<p>VizDoom 實驗的設定與賽車任務大致相同，除了幾個關鍵差異。在賽車任務中，M 只被訓練來建立下一個 $z_{t+1}$ 的模型。因為我們想要建立一個我們能在其中訓練代理人的世界模型，我們這裡的 M 模型還會預測代理人是否會在下一幀死亡（作為二元事件 $done_t$ 或簡稱 $d_t$），此外還要預測下一幀 $z_t$。</p>
+
+<p>在這個模擬中，我們不需要 V 模型在幻覺過程中對任何真實像素幀進行編碼，因此我們的代理人將完全在潛在空間環境（latent space environment）中進行訓練。這個虛擬環境擁有與真實環境完全相同的介面，因此在代理人於虛擬環境中學習到令人滿意的策略後，我們可以輕易地將這個策略部署回真實環境，看看策略的轉移效果如何。</p>
+<ol>
+<li>從隨機策略收集 10,000 次 rollout。</li>
+<li>訓練 VAE (V) 將每一幀編碼成潛在向量 $z \in \mathcal{R}^{64}$，並使用 V 將收集的影像轉換為潛在空間表徵。</li>
+<li>訓練 MDN-RNN (M) 建立模型 $P(z_{t+1}, d_{t+1} | a_t, z_t, h_t)$。</li>
+<li>演化控制器 (C) 以最大化在虛擬環境中的預期存活時間。</li>
+<li>在實際的 Gym 環境中使用第(4)步學習到的策略。</li>
+</ol>
+
+<h4>在夢境中訓練 (Training Inside of the Dream)</h4>
+<p>經過一些訓練後，我們的控制器學會了在夢境環境中導航，並躲避 M 模型生成的怪物發射的致命火球。我們的代理人在這個虛擬環境中獲得了約 900 個時間步的分數。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/doom_lazy_small.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+<p style="text-align:center; font-size:0.9em; color:#666;">這裡，我們的 RNN 世界模型被訓練來模仿一個由人類程式設計師設計的完整遊戲環境。僅從隨機回合中收集的原始圖像數據進行學習，它學會了如何模擬遊戲的基本要素——例如遊戲邏輯、敵人行為、物理特性以及 3D 圖形渲染。</p>
+
+<p>與實際遊戲環境不同的是，我們可以在虛擬環境中加入額外的不確定性，從而使遊戲在夢境環境中更具挑戰性。我們可以透過增加採樣過程中的溫度參數 $\tau$ 來實現這一點。透過增加不確定性，我們的夢境環境變得比實際環境更困難。有時代理人甚至可能單純因為運氣不好而死亡。我們發現，在較高溫度設定下表現良好的代理人，在正常設定下通常表現得更好。事實上，增加 $\tau$ 有助於防止我們的控制器利用世界模型的不完美之處進行作弊。</p>
+
+<h4>轉移策略至真實環境 (Transfer Policy to Actual Environment)</h4>
+<p>我們將在虛擬環境中訓練好的代理人取出，並測試它在原始 VizDoom 場景中的表現。在 100 次隨機試驗中的分數約為 1100 個時間步，遠遠超過所需的 750 個時間步，也遠高於在較困難的虛擬環境中獲得的分數。我們看到，即使 V 模型無法正確捕捉每一幀的所有細節（例如正確計算怪物的數量），代理人仍然能夠使用學習到的策略在真實環境中導航。</p>
+
+<h4>欺騙世界模型 (Cheating the World Model)</h4>
+<p>在我們最初的實驗中，我們注意到我們的代理人發現了一種「對抗性」（adversarial）策略，它的移動方式使得虛擬環境中由 M 控制的怪物在某些 rollout 中完全不發射火球。甚至當火球有形成的跡象時，代理人的移動方式也能「撲滅」火球。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/doom_adversarial.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+
+<p>因為 M 只是環境的近似機率模型，它偶爾會生成不遵循實際環境定律的軌跡。因此，我們的控制器會很容易探索到能直接操縱遊戲引擎隱藏狀態的方法。為了解決這個問題，我們將溫度 $\tau$ 作為可調整參數。如果我們將溫度設得很低（如 0.1），M 幾乎等同於確定性的 LSTM，導致怪物無法射出火球（模型崩潰）。我們透過將 $\tau$ 調整到適當較高的值（例如 1.15），能讓虛擬環境保有挑戰性，並獲得最佳的策略轉移效果（在真實環境中獲得 $1092 \pm 556$ 的分數）。</p>
+
+
+<h3>迭代訓練程序 (Iterative Training Procedure)</h3>
+
+<p>在我們的實驗中，任務相對簡單，因此可以使用從隨機策略收集的數據集訓練出合理的世界模型。但如果我們的環境變得更複雜呢？在任何困難的環境中，只有在代理人學會如何策略性地在世界中導航之後，世界的部分樣貌才會顯露出來。</p>
+
+<p>對於更複雜的任務，需要一個迭代（iterative）的訓練程序。我們需要我們的代理人能夠探索它的世界，並不斷收集新的觀察，這樣它的世界模型才能隨著時間推移而改善並精煉。改編自「學習思考」（Learning To Think）的迭代訓練程序如下：</p>
+
+<ol>
+<li>使用隨機模型參數初始化 M 和 C。</li>
+<li>在實際環境中進行 $N$ 次 rollout。代理人可以在 rollout 期間學習。將所有的動作 $a_t$ 和觀察 $x_t$ 儲存到儲存裝置。</li>
+<li>訓練 M 來建立 $P(x_{t+1}, r_{t+1}, a_{t+1}, d_{t+1} | x_t, a_t, h_t)$ 的模型，並訓練 C 來最佳化 M 內部的預期獎勵。</li>
+<li>如果任務尚未完成，回到步驟 (2)。</li>
+</ol>
+
+<p>我們已經展示了這個訓練迴圈的一次迭代就足以解決簡單的任務。對於更困難的任務，我們需要我們的控制器在步驟 2 中主動探索有利於改善其世界模型的環境部分。一個令人興奮的研究方向是尋找方法將人工好奇心（artificial curiosity）、內在動機（intrinsic motivation）和尋求資訊的能力納入代理人中，以鼓勵新穎的探索。特別是，我們可以根據壓縮品質的提升來增強獎勵函數。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/pendulum01.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+<p style="text-align:center; font-size:0.9em; color:#666;">從像素畫面進行倒立擺（Swing-up Pendulum）：第一次迭代後生成的 rollout。M 在預測擺向上甩起的狀態時有困難，因為從初始隨機策略收集的數據大多在下半部的穩定狀態。儘管如此，C 仍然學會在 M 內部將擺向上甩起。</p>
+
+<video data-src="https://worldmodels.github.io/assets/mp4/pendulum20.mp4" type="video/mp4" autoplay muted playsinline loop style="display: block; margin: auto; width: 100%;"></video>
+<p style="text-align:center; font-size:0.9em; color:#666;">20 次迭代後生成的 rollout。在真實環境中部署能將擺向上甩起的策略，收集到了更多記錄擺在上半部的數據，讓 M 能更準確地建立環境模型，C 也能在 M 內部學到更好的策略。</p>
+
+<p>在這個方法中，由於 M 是一個用來對下一幀影像建立機率分布模型的 MDN-RNN，如果它預測得很差，這意味著代理人遇到了它不熟悉的世界部分。因此我們可以調整並重複使用 M 的訓練損失函數來鼓勵好奇心。透過在真實環境中將 M 的損失函數符號反轉，代理人會被鼓勵去探索它不熟悉的世界部分。它收集到的新數據或許能改善世界模型。</p>
+
+<img src="https://worldmodels.github.io/assets/memory_consolidation.svg" style="display: block; margin: auto; width: 86%;" alt="資訊如何變成記憶" />
+<p style="text-align:center; font-size:0.9em; color:#666;">資訊如何變成記憶。迭代訓練可以讓 C-M 模型發展出一種自然的階層式學習方式。</p>
+
+<p>一個與神經科學文獻的有趣關聯是關於海馬迴重播（hippocampal replay）的研究，該研究探討了大腦在動物休息或睡眠時如何重播最近的經歷。重播最近的經歷在記憶鞏固（memory consolidation）中扮演重要角色——隨時間推移，依賴海馬迴的記憶會逐漸變得獨立於海馬迴。迭代訓練可以讓 C-M 模型發展出一種自然的階層式學習方式。近期的自我對弈（self-play）RL 與 PowerPlay 也探索了導致自然課程學習的方法，我們認為這是強化學習最令人興奮的研究領域之一。</p>
+
+<h3>相關研究 (Related Work)</h3>
+
+<p>有大量關於學習動態模型並利用該模型來訓練策略的文獻。許多在 1980 年代針對前饋神經網路（FNN）和 1990 年代針對 RNN 探索的概念，為「學習思考」（Learning to Think）奠定了一些基礎。PILCO 是一種基於機率模型搜尋的策略方法，旨在解決困難的控制問題。PILCO 利用從環境收集的數據，使用高斯過程（GP）模型學習系統動態，並利用該模型取樣多條軌跡來訓練控制器以執行預期任務，如擺錘向上或騎單輪車。</p>
+
+<p>在機器人控制應用中，僅從基於攝影機的視訊輸入學習系統動態是一項具挑戰性但很重要的問題。早期關於主動視覺 RL 的研究訓練 FNN 接受視訊序列的當前影像幀來預測下一幀，並利用該預測模型來訓練尋找視覺場景目標的注意力轉移控制網路。為解決訓練動態模型直接從高維像素影像中學習的困難，研究人員探討了使用神經網路先學習視訊幀的壓縮表徵。學習來自壓縮潛在空間的動態模型，使得 RL 演算法能在數據效率上大幅提升。</p>
+
+<p>電玩遊戲環境也是許多研究的測試平台。Guzdial 等人使用前饋卷積神經網路（CNN）學習電玩遊戲的順向模擬模型（forward simulation model）。預測不同行動如何影響未來的環境狀態對於遊戲代理人很有用。在 Graves 題為《使用 RNN 產生幻覺（Hallucination with RNNs）》的演講中，他展示了 RNN 學習 Atari 遊戲環境的機率模型的能力。他訓練 RNN 學習遊戲結構，然後展示了它可以自己「幻覺」出類似的遊戲關卡。</p>
+
+<img src="https://worldmodels.github.io/assets/world_models_1990.jpeg" style="display: block; margin: auto; width: 80%;" alt="具有內部 RNN 世界模型的控制器" />
+<p style="text-align:center; font-size:0.9em; color:#666;">具有內部 RNN 世界模型的控制器（1990 年代的示意圖）。</p>
+
+<p>在這項工作中，我們使用演化策略（Evolution Strategies, ES）來訓練我們的控制器，因為它提供了許多好處。例如，我們只需要為優化器提供最終的累積獎勵，而不需要整個歷史記錄。ES 也很容易平行化。在深度 RL 方法流行之前，基於演化的演算法已被證明能有效地找到 RL 任務的解決方案。近期的一些研究也結合了 VAE 和 ES，這與我們的方法類似。</p>
+
+<h3>討論 (Discussion)</h3>
+
+<p>我們已經展示了完全在代理人模擬的潛在空間世界中訓練它執行任務的可能性。這種方法提供了許多實用的好處。例如，電玩遊戲引擎通常需要大量的運算資源來將遊戲狀態渲染成影像幀。我們也許不希望浪費週期在真實環境中訓練代理人，而是讓它在模擬環境中訓練任意次數。逐步訓練出能模擬現實的代理人，可能對於將策略轉移回現實世界（sim2real）是有用的。</p>
+
+<p>此外，我們可以利用深度學習框架在分散式環境中使用 GPU 來加速我們的世界模型模擬。將世界模型實作為一個完全可微分的遞迴計算圖，也意味著我們可能可以直接在夢境中使用反向傳播演算法來微調其策略以最大化目標函數。</p>
+
+<p>將 V 實作為 VAE 並作為獨立模型進行訓練的選擇也有其限制，因為它可能會將觀察中與任務無關的部分進行編碼。無監督學習定義上無法預知什麼對手邊的任務有用。例如，我們的 VAE 在 Doom 環境中重現了側牆上不重要的細節磚塊紋理，但在賽車環境中卻未能重現道路上與任務相關的磁磚。藉由與預測獎勵的 M 模型一起訓練，VAE 可能會學著專注於影像中與任務相關的區域。</p>
+
+<img src="https://worldmodels.github.io/assets/world_models_1990_feedback.jpeg" style="display: block; margin: auto; width: 65%;" alt="1990年關於RNN控制器的古老繪圖" />
+<p style="text-align:center; font-size:0.9em; color:#666;">基於 RNN 的控制器與環境互動的古老繪圖（1990）。</p>
+
+<p>就像早期基於 RNN 的 C-M 系統，我們的系統一步一步地模擬可能的未來，並沒有受惠於類似人類的階層式規劃或抽象推理（這通常會忽略不相關的時空細節）。然而，更普遍的「學習思考」方法並不限於這種單純的方法。近期的「One Big Net」對 C-M 方法的擴展將 C 和 M 折疊成單一神經網路，並使用類似 PowerPlay 的行為重播（將老師網路的行為壓縮進學生網路中）以避免在學習新技能時遺忘舊有的預測與控制技能。</p>
+
+<h3>結論 (Conclusion)</h3>
+<p>這篇論文展示了藉由分離表徵學習（V）、預測動態（M）與策略控制（C），我們不僅能大幅縮小強化學習控制器的參數量，還能讓代理人透過「在自己夢境中學習」來解決困難的視覺導航與生存任務。世界模型讓我們向創造具備更強認知能力的智慧體邁進了一步。</p>
+
+    </article>
+    <footer>
+      <a class="back" href="../">← Deep Reads</a>
+    </footer>
+  </div>
+</body>
+</html>
