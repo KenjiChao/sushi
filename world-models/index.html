@@ -285,6 +285,49 @@
       <div class="code-block">LLM：    輸入文字      → 預測下一個 token
 世界模型：輸入物理狀態  → 預測下一個物理狀態</div>
 
+      <!-- 圖1：LLM vs 世界模型 -->
+      <svg viewBox="0 0 700 180" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;margin:24px auto;display:block;background:#0d0d1a;border-radius:8px;padding:16px">
+        <!-- LLM 流程 -->
+        <text x="175" y="30" text-anchor="middle" fill="#aaa" font-size="13" font-family="sans-serif">LLM</text>
+        <rect x="20" y="45" width="110" height="40" rx="6" fill="#1e1e3a" stroke="#4a90d9" stroke-width="1.5"/>
+        <text x="75" y="70" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">文字輸入</text>
+        <line x1="130" y1="65" x2="155" y2="65" stroke="#4a90d9" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="155" y="45" width="110" height="40" rx="6" fill="#1e1e3a" stroke="#4a90d9" stroke-width="1.5"/>
+        <text x="210" y="70" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">Token 預測</text>
+        <line x1="265" y1="65" x2="290" y2="65" stroke="#4a90d9" stroke-width="1.5" marker-end="url(#arr)"/>
+        <rect x="290" y="45" width="110" height="40" rx="6" fill="#1e1e3a" stroke="#4a90d9" stroke-width="1.5"/>
+        <text x="345" y="65" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">下一個</text>
+        <text x="345" y="80" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">token</text>
+        <!-- 世界模型流程 -->
+        <text x="175" y="125" text-anchor="middle" fill="#aaa" font-size="13" font-family="sans-serif">世界模型</text>
+        <rect x="20" y="140" width="110" height="40" rx="6" fill="#1e1e3a" stroke="#e07a5f" stroke-width="1.5"/>
+        <text x="75" y="165" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">物理狀態輸入</text>
+        <line x1="130" y1="160" x2="155" y2="160" stroke="#e07a5f" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <rect x="155" y="140" width="110" height="40" rx="6" fill="#1e1e3a" stroke="#e07a5f" stroke-width="1.5"/>
+        <text x="210" y="158" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">模擬</text>
+        <text x="210" y="173" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">物理規律</text>
+        <line x1="265" y1="160" x2="290" y2="160" stroke="#e07a5f" stroke-width="1.5" marker-end="url(#arr2)"/>
+        <rect x="290" y="140" width="110" height="40" rx="6" fill="#1e1e3a" stroke="#e07a5f" stroke-width="1.5"/>
+        <text x="345" y="158" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">下一個</text>
+        <text x="345" y="173" text-anchor="middle" fill="#e8e8f0" font-size="12" font-family="sans-serif">物理狀態</text>
+        <!-- 差距標註 -->
+        <rect x="440" y="45" width="240" height="135" rx="8" fill="#16163a" stroke="#555" stroke-width="1"/>
+        <text x="560" y="68" text-anchor="middle" fill="#aaa" font-size="11" font-family="sans-serif">根本差異</text>
+        <text x="460" y="92" fill="#4a90d9" font-size="11" font-family="sans-serif">LLM：只懂語言的統計規律</text>
+        <text x="460" y="112" fill="#e07a5f" font-size="11" font-family="sans-serif">世界模型：理解物理因果</text>
+        <text x="460" y="140" fill="#888" font-size="10" font-family="sans-serif">GPT 可以寫游泳指南</text>
+        <text x="460" y="157" fill="#888" font-size="10" font-family="sans-serif">但從來沒「感受」過水</text>
+        <!-- 箭頭定義 -->
+        <defs>
+          <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#4a90d9"/>
+          </marker>
+          <marker id="arr2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#e07a5f"/>
+          </marker>
+        </defs>
+      </svg>
+
       <p>世界模型需要四個能力：<strong>預測能力</strong>、<strong>物理直覺</strong>、<strong>因果理解</strong>、<strong>持久記憶</strong>。</p>
 
       <hr class="section-divider">
@@ -299,6 +342,50 @@
         <li>分別編碼成抽象表徵</li>
         <li>預測模組用「上下文表徵」預測「目標表徵」</li>
       </ol>
+
+      <!-- 圖2：JEPA 架構圖 -->
+      <svg viewBox="0 0 680 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:680px;margin:24px auto;display:block;background:#0d0d1a;border-radius:8px;padding:16px">
+        <!-- Context 輸入 -->
+        <rect x="10" y="55" width="90" height="50" rx="6" fill="#1e1e3a" stroke="#4ecdc4" stroke-width="1.5"/>
+        <text x="55" y="76" text-anchor="middle" fill="#4ecdc4" font-size="11" font-family="sans-serif">Context</text>
+        <text x="55" y="92" text-anchor="middle" fill="#e8e8f0" font-size="10" font-family="sans-serif">（影格 1）</text>
+        <!-- Target 輸入 -->
+        <rect x="10" y="120" width="90" height="40" rx="6" fill="#1e1e3a" stroke="#9b8ec4" stroke-width="1.5" stroke-dasharray="4"/>
+        <text x="55" y="136" text-anchor="middle" fill="#9b8ec4" font-size="11" font-family="sans-serif">Target</text>
+        <text x="55" y="151" text-anchor="middle" fill="#e8e8f0" font-size="10" font-family="sans-serif">（影格 2）</text>
+        <!-- Encoder -->
+        <line x1="100" y1="80" x2="135" y2="80" stroke="#4ecdc4" stroke-width="1.5" marker-end="url(#arr3)"/>
+        <rect x="135" y="55" width="100" height="50" rx="6" fill="#1a2a3a" stroke="#4ecdc4" stroke-width="1.5"/>
+        <text x="185" y="76" text-anchor="middle" fill="#e8e8f0" font-size="11" font-family="sans-serif">Encoder</text>
+        <text x="185" y="92" text-anchor="middle" fill="#aaa" font-size="10" font-family="sans-serif">抽象表徵</text>
+        <!-- Target Encoder -->
+        <line x1="100" y1="140" x2="135" y2="140" stroke="#9b8ec4" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arr4)"/>
+        <rect x="135" y="120" width="100" height="40" rx="6" fill="#1a1a3a" stroke="#9b8ec4" stroke-width="1.5"/>
+        <text x="185" y="136" text-anchor="middle" fill="#e8e8f0" font-size="11" font-family="sans-serif">Target Enc.</text>
+        <text x="185" y="150" text-anchor="middle" fill="#aaa" font-size="10" font-family="sans-serif">目標表徵</text>
+        <!-- Predictor -->
+        <line x1="235" y1="80" x2="270" y2="80" stroke="#4ecdc4" stroke-width="1.5" marker-end="url(#arr3)"/>
+        <rect x="270" y="55" width="110" height="50" rx="6" fill="#1a2a1a" stroke="#6bcf7f" stroke-width="1.5"/>
+        <text x="325" y="76" text-anchor="middle" fill="#e8e8f0" font-size="11" font-family="sans-serif">Predictor</text>
+        <text x="325" y="92" text-anchor="middle" fill="#aaa" font-size="10" font-family="sans-serif">預測目標表徵</text>
+        <!-- 比較箭頭 -->
+        <line x1="380" y1="80" x2="430" y2="100" stroke="#6bcf7f" stroke-width="1.5" marker-end="url(#arr3)"/>
+        <line x1="235" y1="140" x2="430" y2="120" stroke="#9b8ec4" stroke-width="1.5" stroke-dasharray="4" marker-end="url(#arr4)"/>
+        <!-- Loss -->
+        <rect x="430" y="80" width="110" height="50" rx="6" fill="#2a1a1a" stroke="#e07a5f" stroke-width="1.5"/>
+        <text x="485" y="100" text-anchor="middle" fill="#e8e8f0" font-size="11" font-family="sans-serif">Loss</text>
+        <text x="485" y="116" text-anchor="middle" fill="#aaa" font-size="10" font-family="sans-serif">預測誤差最小化</text>
+        <!-- 說明 -->
+        <text x="340" y="25" text-anchor="middle" fill="#aaa" font-size="11" font-family="sans-serif">JEPA 不重建像素，只預測「抽象表徵」—— 忽略不可預測的細節</text>
+        <defs>
+          <marker id="arr3" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#4ecdc4"/>
+          </marker>
+          <marker id="arr4" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L8,3 z" fill="#9b8ec4"/>
+          </marker>
+        </defs>
+      </svg>
 
       <h3>與生成模型的關鍵差異</h3>
 
@@ -371,6 +458,38 @@
         </div>
 
       </div>
+
+      <!-- 圖3：五種定義的光譜 -->
+      <svg viewBox="0 0 680 120" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:680px;margin:24px auto;display:block;background:#0d0d1a;border-radius:8px;padding:16px">
+        <!-- 光譜軸 -->
+        <text x="30" y="30" fill="#aaa" font-size="11" font-family="sans-serif">← 純語言</text>
+        <text x="550" y="30" fill="#aaa" font-size="11" font-family="sans-serif">純物理 →</text>
+        <line x1="20" y1="50" x2="650" y2="50" stroke="#333" stroke-width="2"/>
+        <!-- 漸層 -->
+        <defs>
+          <linearGradient id="spectrum" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#4a90d9"/>
+            <stop offset="100%" stop-color="#e07a5f"/>
+          </linearGradient>
+        </defs>
+        <line x1="20" y1="50" x2="650" y2="50" stroke="url(#spectrum)" stroke-width="3"/>
+        <!-- 五個點 -->
+        <circle cx="80" cy="50" r="6" fill="#9b8ec4"/>
+        <text x="80" y="75" text-anchor="middle" fill="#e8e8f0" font-size="10" font-family="sans-serif">影片預測</text>
+        <text x="80" y="88" text-anchor="middle" fill="#888" font-size="9" font-family="sans-serif">Sora / Kling</text>
+        <circle cx="210" cy="50" r="6" fill="#6bcf7f"/>
+        <text x="210" y="75" text-anchor="middle" fill="#e8e8f0" font-size="10" font-family="sans-serif">心智模擬器</text>
+        <text x="210" y="88" text-anchor="middle" fill="#888" font-size="9" font-family="sans-serif">DreamerV3</text>
+        <circle cx="340" cy="50" r="6" fill="#f7c948"/>
+        <text x="340" y="75" text-anchor="middle" fill="#e8e8f0" font-size="10" font-family="sans-serif">空間智慧</text>
+        <text x="340" y="88" text-anchor="middle" fill="#888" font-size="9" font-family="sans-serif">World Labs</text>
+        <circle cx="480" cy="50" r="6" fill="#4ecdc4"/>
+        <text x="480" y="75" text-anchor="middle" fill="#e8e8f0" font-size="10" font-family="sans-serif">行動前預測</text>
+        <text x="480" y="88" text-anchor="middle" fill="#888" font-size="9" font-family="sans-serif">機器人/自駕</text>
+        <circle cx="600" cy="50" r="6" fill="#e07a5f"/>
+        <text x="600" y="75" text-anchor="middle" fill="#e8e8f0" font-size="10" font-family="sans-serif">物理理解</text>
+        <text x="600" y="88" text-anchor="middle" fill="#888" font-size="9" font-family="sans-serif">AMI Labs</text>
+      </svg>
 
       <hr class="section-divider">
 
