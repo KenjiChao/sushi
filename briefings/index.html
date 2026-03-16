@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🍰 晨報存檔 — Sushi</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif;
+      background-color: #0d0d1a;
+      color: #e8e8f0;
+      line-height: 1.7;
+      padding: 12px 16px;
+    }
+
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    .top-nav {
+      margin-bottom: 32px;
+    }
+
+    .top-nav a {
+      color: #7ec8e3;
+      text-decoration: none;
+      font-size: 0.9em;
+    }
+
+    .top-nav a:hover { text-decoration: underline; }
+
+    h1 {
+      font-size: 2em;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.9em;
+      margin-bottom: 40px;
+    }
+
+    .briefing-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .briefing-card {
+      display: block;
+      background: #16213e;
+      border: 1px solid #2a2a4a;
+      border-radius: 10px;
+      padding: 18px 22px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .briefing-card:hover {
+      border-color: #7ec8e3;
+      background: #1a2a50;
+      text-decoration: none;
+    }
+
+    .card-date {
+      font-size: 0.8em;
+      color: #7ec8e3;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .card-title {
+      font-size: 1em;
+      color: #e8e8f0;
+      font-weight: 500;
+    }
+
+    .empty-state {
+      color: #555;
+      font-size: 0.95em;
+      text-align: center;
+      padding: 48px 0;
+    }
+
+    @media (max-width: 600px) {
+      .container { padding: 20px 16px; }
+      h1 { font-size: 1.6em; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="top-nav">
+      <a href="https://kenjichao.github.io/sushi/">← 回首頁</a>
+    </div>
+
+    <h1>🍰 晨報存檔</h1>
+    <p class="subtitle">AI 科技圈每日晨報，按日期倒序排列</p>
+
+    <div class="briefing-list">
+      <a class="briefing-card" href="2026-03-16.html">
+        <div class="card-date">2026-03-16（一）</div>
+        <div class="card-title">AI 科技圈晨報 — NVIDIA GTC 2026 開幕、阿里 ATH、Apple M4 iPad Air</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
