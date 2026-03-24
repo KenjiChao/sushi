@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>用 LangGraph 與 Mem0 為 AI Agent 建立長期記憶</title>
+  <link rel="stylesheet" href="_style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>用 LangGraph 與 Mem0 為 AI Agent 建立長期記憶</h1>
+      <div class="meta">
+        <span>DigitalOcean Community · 翻譯整理：2026 年 3 月 24 日</span>
+        ·
+        <a href="https://www.digitalocean.com/community/tutorials/langgraph-mem0-integration-long-term-ai-memory?hl=zh-TW" target="_blank" class="source-link-inline" rel="noopener noreferrer">閱讀原文 →</a>
+      </div>
+    </header>
+
+    <article>
+      <blockquote>
+        這是一篇以繁體中文（台灣用語）整理的譯文。技術術語如 <code>LangGraph</code>、<code>Mem0</code>、<code>node</code>、<code>edge</code>、<code>RAG</code>、<code>vector database</code> 等保留英文；程式碼區塊維持原文不翻譯。
+      </blockquote>
+
+      <p>傳統的 <a href="https://www.digitalocean.com/community/conceptual-articles/rag-ai-agents-agentic-rag-comparative-analysis" target="_blank" rel="noopener noreferrer">AI agents</a> 通常只依賴短期上下文（也就是目前這段對話視窗），一旦聊天結束，往往就會忘記之前的互動。但如果我們能替 agent 賦予長期記憶呢？當 agent 能記住使用者偏好、事實資訊與互動歷史，就能打造出更個人化、能力更強的系統。這件事可以透過結合 <a href="https://www.digitalocean.com/community/tutorials/getting-started-agentic-ai-langgraph" target="_blank" rel="noopener noreferrer">LangGraph</a> —— 一個以 stateful graph 為基礎的 agent framework —— 與 Mem0 這種專為記憶設計的 memory layer 來達成。透過記憶，LLM agent 就能「記得」過去資訊，並加以運用。</p>
+
+      <p>當你把 LangGraph 與 <a href="https://arxiv.org/abs/2504.19413" target="_blank" rel="noopener noreferrer">Mem0</a> 結合，就能得到具備 context awareness 的 agent。由於 Mem0 會負責儲存與取回 memories，因此每次 LangGraph 開啟新 session 時，都可以把與過去互動相關的摘要加入 prompt 中。這讓你能打造出能隨時間與使用者維持更長久、更個人化、也更連貫對話的 agent。本文會介紹主要的 memory 類型、說明 LangGraph + Mem0 的工作流程、提供程式碼範例、比較不同記憶策略（RAG vs memory），並討論在規模化情境下需要注意的事項（像是 <a href="https://www.digitalocean.com/resources/articles/what-are-vector-databases" target="_blank" rel="noopener noreferrer">vector DB</a>、隱私與成本）。</p>
+
+      <h2>重點整理</h2>
+      <ul>
+        <li><strong>持久化記憶能讓 agent 更強：</strong>LangGraph agent 可以在對話之間保留 memory，讓你在不同 session 之間持續客製化互動。Agent 會逐步記住你是誰，也會隨時間更了解你。</li>
+        <li><strong>Memory 與 context window 不一樣：</strong>context window 提供的是短期、只限當前 session 的上下文記憶；長期記憶（Mem0）則會持久保存與特定使用者相關的事實。<code>RAG</code> 則能透過擷取外部知識，補強短期與長期記憶。</li>
+        <li><strong>LangGraph 的結構很適合加 memory：</strong>LangGraph 的 graph 結構讓你能很直觀地加入 memory node。你可以在 <code>State</code> 裡定義 <code>mem0_user_id</code>，並在 chatbot node 中執行 memory search / index，再把記憶加進每一輪對話。</li>
+        <li><strong>Mem0 的能力：</strong>Mem0 能萃取 semantic memory，並提供彈性的 persistent storage。它可搭配任意 LLM，讓你自行定義 memory 行為，和封閉式的 OpenAI Memory 不同。</li>
+        <li><strong>Memory system 設計很重要：</strong>要用 semantic search 抓取事實、透過 filter 或 consolidation 避免重複記憶，並在細節與摘要之間取得效率平衡。選對 vector DB 與 indexing strategy 也很關鍵。</li>
+        <li><strong>進入 production 前要思考：</strong>你需要規劃隱私、retention policy 與 scalability。記憶雖然能明顯降低 token 用量並提升回應相關性，但同時也增加了儲存與計算層。</li>
+      </ul>
+
+      <h2>AI Memory：短期記憶、Retrieval 與長期記憶</h2>
+      <p>AI agents 會依照使用範圍搭配不同型態的記憶：</p>
+      <ul>
+        <li><strong>短期（Session）記憶：</strong>也常被稱為 window memory，指的是單一對話 thread 中目前的聊天歷史。這種以 thread 為範圍的 state 通常由 LangGraph 自動處理。不過，一旦對話結束，這個 window 也就關閉了。如果你要求 agent「列出我之前存過的文件」，它只能回想起同一個 chat session 中你提供過的文件。當系統直接操作原始 chat history（過去訊息）時，也會受限於 LLM 的 context window，導致 prompt 膨脹與成本增加。</li>
+        <li><strong>Retrieval Memory（RAG）：</strong>這指的是從外部來源（像文件或資料庫）取回資訊的流程。Retrieval-Augmented Generation pipeline 會利用 <a href="https://www.digitalocean.com/resources/articles/what-are-vector-databases" target="_blank" rel="noopener noreferrer">vector database</a>，根據使用者當前 query 動態擷取相關資訊。你可以把 RAG 想成 agent 每次都去「閱讀」外部文件。</li>
+        <li><strong>長期（Persistent）記憶：</strong>這是一種穩定、以使用者為中心，且能跨 session 持續存在的記憶。長期記憶能保存關於使用者的濃縮事實、偏好與經驗，並在之後的對話中再次被喚回。和只帶入通用資訊的 RAG 不同，長期記憶保存的是個人化上下文。</li>
+      </ul>
+      <p>簡單來說：短期記憶處理當前對話，RAG 補進外部資料，而長期記憶（Mem0）則提供跨 session 的使用者連續性上下文。</p>
+
+      <h2>LangGraph 概觀</h2>
+      <p><a href="https://www.digitalocean.com/community/tutorials/local-ai-agents-with-langgraph-and-ollama" target="_blank" rel="noopener noreferrer">LangGraph</a> 是一個用來建立 stateful、graph-based agents 的 framework。它不是線性的 chain，而是讓你建立由 <code>node</code> 與 <code>edge</code> 構成的 workflow。<code>Node</code> 負責處理小型功能單位，例如呼叫 LLM、執行計算、或從 memory 取資料，然後回傳更新後的 state。<code>Edge</code> 則會依據目前 state 決定是否被執行，並負責在 node 之間導流。整個流程由核心的 <a href="https://docs.langchain.com/oss/python/langgraph/graph-api" target="_blank" rel="noopener noreferrer">StateGraph</a> 物件維護共享狀態。LangGraph 的幾個重點如下：</p>
+      <ul>
+        <li><strong>State 管理：</strong>LangGraph 透過 <code>State</code> 物件維持對話狀態，並在不同 node 間傳遞。這裡面會包含所有訊息歷史，以及你想附加給使用者的 metadata。你可以透過 checkpointing 讓 state 跨 node 持續存在，但預設仍只保留在單一 session 內。</li>
+        <li><strong>Conditional edges：</strong><code>Edge</code> 可以帶條件，因此 LangGraph 不只是簡單串接 node，也能 branch 甚至 loop。舉例來說，你可以依照使用者意圖，把流程導到不同工具。</li>
+        <li><strong>可擴充：</strong>想換不同的 LLM provider？像 OpenAI、Anthropic、Google 等都可以。它本來就是以 production 使用為導向設計，也支援 streaming、錯誤處理等等。</li>
+        <li><strong>Session 範圍：</strong>預設情況下，LangGraph agent 只能看到當前 session 的上下文。聊天一旦「結束」，除非你把 state 存到外部，否則它就會被清掉。</li>
+      </ul>
+
+      <h2>Mem0 提供了什麼</h2>
+      <p>Mem0 是一套給 <a href="https://www.digitalocean.com/resources/articles/types-of-ai-agents" target="_blank" rel="noopener noreferrer">AI agents</a> 使用的 persistent memory 解決方案。你可以把它看成 semantic memory layer：Mem0 會從對話與你提供的事實中，擷取、儲存並取回和使用者相關的資訊。Mem0 本身不是 LLM，而是一層專為「AI memory」打造的資料庫加搜尋系統。它的主要特點包括：</p>
+      <ul>
+        <li><strong>Semantic Memory：</strong>Mem0 會從原始聊天訊息中，只萃取事實性知識，並以簡短 memory phrase 儲存。例如：<code>I love pizza</code> → 儲存成 <code>Loves pizza</code>。這有助於把整體 memory 體積維持得更小。</li>
+        <li><strong>Multi-Level Memory：</strong>Mem0 提供多種 namespace 層級（例如 user-level、session-level、agent-level）。你可以隔離每個使用者的 memories，也可以共享全域 agent facts。</li>
+        <li><strong>Smart Retrieval：</strong>給 Mem0 一個 query（例如使用者最新的一句話）後，它會透過 vector similarity 搜尋並回傳最相關的 memories。預設會以 user ID 做範圍限制，因此只會讀到該使用者自己的歷史。</li>
+        <li><strong>Flexible Storage：</strong>Mem0 可以連接不同 storage backend。你可以用 <a href="https://www.digitalocean.com/community/tutorials/how-and-when-to-use-sqlite" target="_blank" rel="noopener noreferrer">SQLite</a> 做本機測試，或連到 Qdrant、Pinecone、Weaviate 等 vector database。若用雲端版本，Mem0 也可以幫你管理。</li>
+        <li><strong>Open Source + Cloud：</strong>它同時提供可 self-host 的 open-source client library，以及方便快速上手的 cloud 平台（<a href="http://app.mem0.ai" target="_blank" rel="noopener noreferrer">app.mem0.ai</a>）。</li>
+      </ul>
+
+      <h2>整合架構</h2>
+      <p>把兩者整合起來後，整體流程會非常清楚：</p>
+      <ul>
+        <li><strong>接收訊息：</strong>你的 agent 透過 LangGraph 的 node（例如 chatbot）接收使用者訊息。</li>
+        <li><strong>搜尋 memory：</strong>該 node 會呼叫 <code>mem0.search()</code>，傳入使用者最新訊息與其 <code>userId</code>。系統會回傳一串可能相關的 memories，並依 vector similarity 排序。</li>
+        <li><strong>組裝上下文：</strong>這些 memories 會被格式化為可讀的 context string，接著插入 system prompt 前面，讓 LLM 在生成回答時能「知道」過去資訊。</li>
+        <li><strong>呼叫 LLM：</strong>Agent 會把 system message 與 conversation history 一起送進 LLM（如 ChatOpenAI 或其他 provider）。回應時就會同時考量當前輸入與帶入的記憶。</li>
+        <li><strong>更新 memory：</strong>在回應傳回給使用者後，agent 會非同步呼叫 <code>mem0.add()</code>，把本次互動（使用者訊息與 assistant 回應）存起來，供未來檢索。</li>
+      </ul>
+
+      <p>LangGraph 負責在流程迭代中維持 state，而 Mem0 則負責長期持久化儲存。以下是一段程式碼草圖：</p>
+
+      <pre><code>def chatbot(state: State):
+ messages = state["messages"]
+ user_id = state["mem0_user_id"]
+ try:
+ # 1. Retrieve relevant memories with user filter
+ memories = mem0.search(
+ messages[-1].content,
+ filters={"user_id": user_id},
+ version="v2"
+ )
+ memory_list = memories.get('results', [])
+ # 2. Build context string
+ context = "Relevant information from previous conversations:\n"
+ for memory in memory_list:
+ context += f"- {memory['memory']}\n"
+ # 3. Prepend system message
+ system_message = SystemMessage(content=f"""
+ You are a helpful assistant. Use the provided context to personalize your response.
+ {context}
+ """)
+ full_messages = [system_message] + messages
+ # 4. Generate response
+ response = llm.invoke(full_messages)
+ # 5. Store interaction with explicit user_id
+ interaction = [
+ {"role": "user", "content": messages[-1].content},
+ {"role": "assistant", "content": response.content}
+ ]
+ mem0.add(interaction, filters={"user_id": user_id})
+
+ return {"messages": [response]}
+ except Exception as e:
+ # Fallback without memory
+ response = llm.invoke(messages)
+ return {"messages": [response]}</code></pre>
+
+      <h2>Memory 萃取、過濾與摘要策略</h2>
+      <p>這套概念架構圖說明了 AI 應用中 persistent memory 的高層設計。要建立可靠的長期記憶，通常需要三個控制點：定義哪些內容應該被存下來、規範 memory 應如何隨時間更新，以及透過寫入過濾來維持準確度與實用性。</p>
+
+      <p><strong>第一，先定義什麼才算 memory。</strong>Mem0 在撰寫 <a href="https://docs.mem0.ai/open-source/features/custom-fact-extraction-prompt#see-it-in-action" target="_blank" rel="noopener noreferrer">custom fact extraction prompts</a> 時，鼓勵你清楚定義哪些事實應該被寫入。這在你想保存訂單編號、個人偏好、客服歷史、或任務限制時特別有價值；但你又不希望閒聊內容混進長期記憶。官方文件也明確指出：如果 prompt 設計得太寬鬆，就很容易產生 noisy memory。</p>
+
+      <p><strong>第二，定義 memory 會如何隨時間變化。</strong>Mem0 也提供可調整的 <a href="https://docs.mem0.ai/open-source/features/custom-fact-extraction-prompt" target="_blank" rel="noopener noreferrer">custom_update_memory_prompt</a>，讓 LLM 在面對新事實時，決定要執行 <code>ADD</code>、<code>UPDATE</code>、<code>DELETE</code> 或 <code>NONE</code>。如果沒有這種更新邏輯，當使用者修正自己、改變偏好，或撤回先前指示時，系統就可能只是把新舊資訊一層層疊上去，讓過期事實永遠留著。</p>
+
+      <p><strong>第三，控制寫入品質。</strong><a href="https://docs.mem0.ai/cookbooks/essentials/controlling-memory-ingestion" target="_blank" rel="noopener noreferrer">不受控的寫入</a> 很容易把猜測當成事實。舉例來說，如果 AI assistant 不經過濾就把每一條使用者訊息都存起來，那麼暫時性的問題、誤解，或不完整資訊，就可能變成永久記憶。這會導致未來互動中出現錯誤假設。比較健康的 production 實務是：即時只保存經驗證的重要事實與偏好，而較不關鍵的對話資料則改成非同步處理。</p>
+
+      <h2>不同 memory 方法之間的取捨</h2>
+      <p>把長期記憶加進 agent，會帶來一些設計上的 trade-off：</p>
+      <ul>
+        <li><strong>儲存空間 vs latency：</strong>完整保存整段對話可以做到最完整的 recall，但代價是更高的儲存需求，以及擷取 memories 時更高的延遲。若改用摘要，可以減少儲存量並提升擷取效率，但精準度會有所犧牲。</li>
+        <li><strong>隱私 vs 個人化：</strong>memory 解決方案必須保護使用者隱私。Mem0 雖然透過 user ID scope 來隔離 memories，但你仍應考慮實作 data retention policy，並允許使用者透過 API 刪除自己的記憶。</li>
+        <li><strong>準確度 vs 成本：</strong>一次擷取太多 memories 可能會讓 LLM 混亂；抓得太少，又可能漏掉關鍵資訊。你需要根據使用情境調整 <code>max_memories</code> 與 relevance threshold。</li>
+        <li><strong>資料庫選擇：</strong>像 <a href="https://supabase.com/docs/guides/database/extensions/pgvector" target="_blank" rel="noopener noreferrer">pgvector</a>、<a href="https://www.digitalocean.com/community/conceptual-articles/a-dive-into-vector-databases#introduction-to-pinecone" target="_blank" rel="noopener noreferrer">Pinecone</a>、<a href="https://www.digitalocean.com/community/conceptual-articles/a-dive-into-vector-databases#weaviate-an-open-source-vector-database" target="_blank" rel="noopener noreferrer">Weaviate</a> 這些 vector database，在 scalability 與成本上各有差異。Mem0 的 reference implementation 內建使用 pgvector，但如果你偏好其他 backend 或 managed service，也可以替換。</li>
+      </ul>
+      <p>理解這些取捨，有助於你設計出在效能、成本與使用者體驗之間更平衡的 memory system。</p>
+
+      <h2>Mem0–LangGraph 整合逐步說明</h2>
+      <p>以下是一份將 Mem0 接上 LangGraph 的 quick-start。這是基於官方文件整理的摘要，也補充了一些優化方向。</p>
+
+      <h3>1. 安裝相依套件</h3>
+      <p>先安裝需要的 library：</p>
+      <pre><code>pip install langgraph langchain-openai mem0ai python-dotenv</code></pre>
+      <p>接著建立 <code>.env</code> 檔，放入你的 API keys：</p>
+      <pre><code>OPENAI_API_KEY=sk-your-openai-key
+MEM0_API_KEY=your-mem0-key</code></pre>
+      <p>embedding provider、model 與 dimensions 可依你的需求自行設定。</p>
+
+      <h3>2. 初始化 LangGraph 與 Mem0</h3>
+      <p>建立一個包含對話訊息與 user ID 的 <code>State</code> class，接著初始化 <code>StateGraph</code> 並定義 chatbot node：</p>
+      <pre><code>import os
+from typing import Annotated, TypedDict, List
+from dotenv import load_dotenv
+from langgraph.graph import StateGraph, START
+from langgraph.graph.message import add_messages
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from mem0 import MemoryClient
+load_dotenv()
+class State(TypedDict):
+ messages: Annotated[List[HumanMessage | AIMessage], add_messages]
+ mem0_user_id: str
+llm = ChatOpenAI(model="gpt-4o")
+mem0 = MemoryClient() # No API key needed for local/serverless mode
+graph = StateGraph(State)</code></pre>
+
+      <p>上面這段程式會完成以下幾件事：</p>
+      <ul>
+        <li>匯入 state management、message handling、OpenAI chat 與 Mem0 memory 所需套件。</li>
+        <li>從 <code>.env</code> 載入環境變數。</li>
+        <li>初始化一個包含 conversation history 與 Mem0 user ID 的 <code>State</code> 物件。</li>
+        <li>初始化 GPT-4o chat model 與 Mem0 client。</li>
+        <li>建立 LangGraph state graph，作為 agent workflow 的基礎。</li>
+      </ul>
+      <p>接下來，你會像前面示範那樣定義 chatbot function：搜尋 memories、建立 context、生成回應，並儲存互動紀錄。</p>
+
+      <h3>3. 建立對話 graph</h3>
+      <p>把 chatbot node 與對應的 edges 加進去：</p>
+      <pre><code>graph.add_node("chatbot", chatbot)
+graph.add_edge(START, "chatbot")
+graph.add_edge("chatbot", "chatbot")
+compiled_graph = graph.compile()</code></pre>
+      <p>這段程式建立了一個基本的 LangGraph workflow，並把 chatbot node 設為起始執行點。它指定 chatbot function 為主要步驟，接著在每一輪對話結束後回到自己，形成循環；最後由 <code>graph.compile()</code> 把圖形定義轉成可執行的 app。</p>
+
+      <h3>4. 建立 conversation runner</h3>
+      <p>撰寫一個 <code>run_conversation</code> function，從 compiled graph 以 stream 方式取得事件：</p>
+      <pre><code>def run_conversation(user_input: str, mem0_user_id: str):
+ config = {"configurable": {"thread_id": mem0_user_id}}
+ state = {"messages": [HumanMessage(content=user_input)], "mem0_user_id": mem0_user_id}
+ for event in compiled_graph.stream(state, config, stream_mode="values"):
+ last_message = event["messages"][-1]
+ if isinstance(last_message, AIMessage):
+ return last_message.content
+# Main interaction loop
+def main():
+ user_id = input("Enter your user ID: ")
+ print("Chatbot ready! Type 'quit' to exit.")
+ while True:
+ user_input = input("\nYou: ")
+ if user_input.lower() == 'quit':
+ break
+ response = run_conversation(user_input, user_id)
+ print(f"Bot: {response}")</code></pre>
+
+      <p>這段程式會執行 chatbot、傳入使用者訊息、組裝根層級的 conversation state，並透過 compiled LangGraph workflow 逐步 stream 事件，直到拿到 AI 回應。<code>main()</code> 則建立了一個簡單的 command-line chat loop：持續要求使用者輸入、顯示 bot 回應，直到輸入 <code>quit</code> 為止。</p>
+
+      <h3>5. 部署與監控</h3>
+      <p>接著把 agent 部署到你偏好的執行環境。記憶資料應存放在 vector database（如 <a href="https://cloud.google.com/discover/what-is-pgvector?hl=en" target="_blank" rel="noopener noreferrer">pgvector</a>、Pinecone、Weaviate 等）。同時也要持續追蹤 memory 成長速度、調整清理頻率，並微調 retrieval 設定，在個人化程度、相關性與系統效能之間取得平衡。</p>
+
+      <h2>Production 注意事項</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>主題</th>
+            <th>核心概念</th>
+            <th>實務建議</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Vector Database</td>
+            <td>Mem0 預設使用 SQLite，適合快速測試；但 production 系統通常還是需要 vector database。</td>
+            <td>請確認資料庫對 <code>user_id</code> 有建立 index。若使用 Mem0 Cloud 等 managed option，這部分可能可由服務代管；若 self-host，也可自行處理。資料庫選型（例如 Qdrant 或 Pinecone）會直接影響成本、速度與可用功能。</td>
+          </tr>
+          <tr>
+            <td>Data Privacy &amp; Retention</td>
+            <td>Memory system 會儲存使用者資料，因此隱私與保留政策必須謹慎處理。</td>
+            <td>必要時要加密敏感欄位、在定義期限後移除 memories，並在儲存個資前先取得使用者同意。Mem0 API 可協助刪除或匯出資料。若搭配 <a href="https://www.digitalocean.com/products/vpc" target="_blank" rel="noopener noreferrer">DigitalOcean VPC</a>，也可提升 vector store 的保護性。</td>
+          </tr>
+          <tr>
+            <td>Cost &amp; Performance</td>
+            <td>加入 memory 後，因為 prompt 較短，LLM token 使用量會下降；但同時也增加資料庫查詢。</td>
+            <td>Semantic search 通常很快，而且可做 batch。根據 <a href="https://arxiv.org/abs/2504.19413?utm_source=chatgpt.com" target="_blank" rel="noopener noreferrer">Mem0 的報告</a>，相較於 full-context 方法，可達成約 90% token 節省，以及 91% 的 p95 latency 降低。不過你仍應以自己的 LLM 架構實測確認。</td>
+          </tr>
+          <tr>
+            <td>Reliability</td>
+            <td>Memory database 與 LangGraph state 都應設計成具備 fault tolerance。</td>
+            <td>可以使用 LangGraph checkpoints 來從 crash 中恢復，並對 memory storage 做備份。隨著 vector database 成長，也要持續監控使用量並規劃擴充。</td>
+          </tr>
+          <tr>
+            <td>Security</td>
+            <td>Mem0 API key 與資料庫都必須妥善保護。</td>
+            <td>應限制寫入權限，只允許 agent 修改 memory。在 multi-agent 或 multi-tenant 架構下，也應隔離 namespace，以提升安全性與隔離性。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>FAQ</h2>
+      <ul>
+        <li><strong>AI agent 的長期記憶是什麼？</strong><br>長期記憶是 agent 用來存放從互動中得到的重要事實的地方。短期記憶通常只受限於 context window，經過幾輪對話就可能重置；長期記憶則可以跨 session 持久保存。</li>
+        <li><strong>Mem0 和 RAG 有什麼不同？</strong><br>Retrieval-Augmented Generation 會從外部文件中取回知識來補強 LLM。Mem0 則只存放你的對話歷史，並從使用者對話中萃取事實，讓 agent 能記住與你有關的資訊、做出更個人化的回應。用 RAG 你可能會問「法國的首都是哪裡？」；用 Mem0，agent 則能記得你上個月訂過一台筆電。</li>
+        <li><strong>LangGraph agent 真的能記得過去對話嗎？</strong><br>可以。只要把 Mem0 與 LangGraph 結合起來，agent 就能記住過去的互動。每一輪對話結束後，新的片段會被存起來，之後的輪次再把相關 memories 擷取出來。透過 middleware 與 search function，適用的記憶就能被推進 system prompt。</li>
+        <li><strong>Mem0 一定需要 vector database 嗎？</strong><br>Mem0 需要 vector store 來對 embeddings 做 similarity search。雖然 reference implementation 使用 pgvector，但你也可以改成 managed service。對多數小型專案來說，pgvector 通常就夠用；若是大規模部署，則可能會偏好 Pinecone 或 Weaviate。</li>
+        <li><strong>長期記憶有哪些常見應用場景？</strong><br>常見場景包括 personal assistant、customer support agent、tutoring system 與內部 help desk。只要 agent 會反覆與同一位使用者互動，就能利用長期記憶來客製化回覆、避免重複、建立關係。長期記憶也能支援對使用者行為與偏好的分析。</li>
+      </ul>
+
+      <h2>結論</h2>
+      <p>將 LangGraph 與 Mem0 搭配，是把以 session 為主的 agent，推進成具備 persistent、長生命週期、且以個別使用者為範圍之記憶型 agent 的一條可行路線。LangGraph 負責提供結構化 orchestration 與短期對話 state 管理；Mem0 則提供可跨 session 擷取的 persistent semantic memory，以提升連續性、個人化與相關性。</p>
+
+      <p>只要架構設計得宜——例如只選擇性萃取與保留資訊、做好隱私控管、調整 retrieval 設定——這種組合就能讓開發者打造出更強大的 agent，同時在大規模情境下仍維持效率，而不用依賴膨脹的 chat history 或過度泛化的文件檢索。</p>
+
+      <p>除了本機範例之外，真正 production-ready 的 memory architecture 也需要部署基礎設施。DigitalOcean 的 <a href="https://www.digitalocean.com/blog/digitalocean-gradient-ai-platform-langchain-integration" target="_blank" rel="noopener noreferrer">LangChain Gradient integration</a>，可讓 LangChain 驅動的 workflow 連上 Gradient AI Platform。這讓開發者能使用多種模型，透過 GPU 加速的 serverless inference，把 AI app 從 prototype 推向可擴充的正式環境。</p>
+
+      <h2>參考資料</h2>
+      <ul>
+        <li><a href="https://docs.mem0.ai/integrations/langgraph" target="_blank" rel="noopener noreferrer">LangGraph（Mem0 integration）</a></li>
+        <li><a href="https://docs.langchain.com/oss/python/langgraph/overview" target="_blank" rel="noopener noreferrer">LangGraph overview</a></li>
+        <li><a href="https://docs.langchain.com/oss/python/langgraph/graph-api" target="_blank" rel="noopener noreferrer">Graph API overview</a></li>
+        <li><a href="https://docs.mem0.ai/open-source/features/custom-fact-extraction-prompt#see-it-in-action" target="_blank" rel="noopener noreferrer">Custom Fact Extraction Prompt</a></li>
+        <li><a href="https://arxiv.org/abs/2504.19413?utm_source=chatgpt.com" target="_blank" rel="noopener noreferrer">Mem0: Building Production-Ready AI Agents with Scalable Long-Term Memory</a></li>
+      </ul>
+
+      <p>原文授權資訊：<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener noreferrer">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a></p>
+    </article>
+
+    <footer>
+      <a class="back" href="index.html">← Deep Reads</a>
+    </footer>
+  </div>
+</body>
+</html>
