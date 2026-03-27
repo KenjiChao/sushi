@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>長時間應用程式開發的 harness 設計</title>
+  <style>
+* { box-sizing: border-box; margin: 0; padding: 0; } body { font-family: -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; background-color: #0d0d1a; color: #e8e8f0; line-height: 1.7; padding: 12px 16px; } .container { max-width: 860px; margin: 0 auto; padding: 24px 48px; } h1, h2, h3, h4 { color: #ffffff; margin-top: 1.5em; margin-bottom: 0.5em; line-height: 1.4; } h1 { font-size: 1.9em; font-weight: 600; margin-bottom: 8px; } h2 { font-size: 1.35em; font-weight: 600; padding-bottom: 8px; border-bottom: 1px solid #2a2a4a; margin: 40px 0 16px; } h3 { font-size: 1.15em; } p { margin-bottom: 16px; } ul, ol { padding-left: 24px; margin-bottom: 16px; } li { margin-bottom: 8px; } a { color: #7ec8e3; text-decoration: none; } a:hover { text-decoration: underline; } .meta { color: #888; font-size: 0.85em; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid #2a2a4a; } .source-link-inline { color: #7ec8e3; } code { font-family: ui-monospace, Consolas, monospace; background-color: #0a0a14; padding: 2px 6px; border-radius: 4px; color: #ffb86c; font-size: 0.9em; } pre { background-color: #0a0a14; padding: 15px; border-radius: 8px; overflow-x: auto; border: 1px solid #2a2a4a; margin-bottom: 16px; } pre code { background-color: transparent; padding: 0; color: #e8e8f0; font-size: 0.95em; } blockquote { border-left: 3px solid #0f3460; padding: 12px 20px; margin: 20px 0; background: #16213e; border-radius: 0 6px 6px 0; color: #c8c8e0; } @media (max-width: 600px) { .container { padding: 12px 16px; } h1 { font-size: 1.5em; } }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+  th, td { border: 1px solid #2a2a4a; padding: 10px 12px; text-align: left; vertical-align: top; }
+  th { background-color: #141428; color: #fff; }
+  .subtitle { color: #b8b8c8; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>長時間應用程式開發的 harness 設計</h1>
+    <p class="subtitle">Harness design for long-running application development</p>
+    <div class="meta">
+      <p>作者：Prithvi Rajasekaran（Anthropic Labs 團隊成員）</p>
+      <p>原文：<a class="source-link-inline" href="https://www.anthropic.com/engineering/harness-design-long-running-apps" target="_blank" rel="noopener noreferrer">https://www.anthropic.com/engineering/harness-design-long-running-apps</a></p>
+      <p>翻譯：繁體中文（台灣用語），保留關鍵技術術語英文。</p>
+    </div>
+
+    <p>過去幾個月裡，我一直在處理兩個彼此相連的問題：如何讓 Claude 產出高品質的 frontend 設計，以及如何讓它在沒有人類介入的情況下建出完整應用程式。這項工作源自更早之前對 <a href="https://github.com/anthropics/claude-code/blob/main/plugins/frontend-design/skills/frontend-design/SKILL.md" target="_blank" rel="noopener noreferrer">frontend design skill</a> 與 <a href="https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents" target="_blank" rel="noopener noreferrer">long-running coding agent harness</a> 的研究；當時我和同事透過 prompt engineering 與 harness 設計，讓 Claude 的表現明顯超越 baseline，但兩條路最後都碰到了天花板。</p>
+
+    <p>為了突破這個限制，我開始尋找能同時適用於兩種截然不同領域的新 AI engineering 方法：一種是由主觀品味定義的設計領域，另一種則是能以正確性與可用性驗證的應用開發。受到 <a href="https://en.wikipedia.org/wiki/Generative_adversarial_network" target="_blank" rel="noopener noreferrer">Generative Adversarial Networks</a>（GANs）的啟發，我設計出一種由 generator agent 與 evaluator agent 組成的 multi-agent 結構。要做出一個能穩定評分、而且「有品味」的 evaluator，前提是先建立一組標準，把像是「這個設計好不好？」這類主觀判斷，轉成具體且可評分的項目。</p>
+
+    <p>接著，我把這些技巧套用到長時間自主 coding 上，並延續先前 harness 工作中的兩個經驗：把建構流程拆成可處理的小塊，以及使用結構化 artifacts 在不同 session 之間傳遞 context。最後形成的結果，是一個由 planner、generator 與 evaluator 組成的三 agent 架構，能在跨越數小時的自主 coding session 裡，產出內容豐富的 full-stack 應用程式。</p>
+
+    <h2>為什麼天真的實作方式會失敗</h2>
+
+    <p>我們先前已經展示過，harness 設計會大幅影響長時間 agentic coding 的效果。在先前的<a href="https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents" target="_blank" rel="noopener noreferrer">實驗</a>中，我們使用 initializer agent 把產品規格拆成 task list，再交給 coding agent 依序一次做一個 feature，並透過 artifacts 在不同 session 之間延續 context。更廣泛的開發者社群也逐漸收斂到類似的洞見，例如「<a href="https://ghuntley.com/ralph/" target="_blank" rel="noopener noreferrer">Ralph Wiggum</a>」方法，就是用 hooks 或 scripts 讓 agent 持續維持在迭代循環中。</p>
+
+    <p>但有些問題始終存在。當任務更複雜時，agent 還是容易隨著時間逐漸失控。在拆解這個問題後，我們觀察到 agent 執行這類任務時，常見有兩種失敗模式。</p>
+
+    <p>第一種，是 model 在 context window 被逐漸塞滿後，處理長任務時會失去連貫性（可參考我們關於 <a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents" target="_blank" rel="noopener noreferrer">context engineering</a> 的文章）。有些 model 還會出現「context anxiety」：當它們覺得自己快接近 context 上限時，就會開始過早收尾。要解決這兩個問題，可以使用 context reset——也就是把 context window 完全清空、重新啟動一個新的 agent，並透過結構化 handoff 把前一個 agent 的狀態與下一步工作交接過去。</p>
+
+    <p>這和 compaction 不一樣。compaction 是把對話前段內容原地摘要，讓同一個 agent 在縮短後的歷史上繼續工作。雖然 compaction 能維持連續性，但它不會給 agent 一張真正乾淨的白紙，因此 context anxiety 仍可能持續存在。reset 則提供真正的 clean slate，代價是 handoff artifact 必須攜帶足夠的狀態，讓下一個 agent 能無縫接手。我們先前測試時發現，Claude Sonnet 4.5 的 context anxiety 明顯到單靠 compaction 還不足以支撐強健的長任務表現，因此 context reset 成了 harness 設計的必要元素。這雖然解決了核心問題，但也增加了 orchestration 的複雜度、token 開銷與每次 harness 執行的延遲。</p>
+
+    <p>第二個問題，是我們先前尚未處理過的：self-evaluation。當 agent 被要求評估自己產出的成果時，往往會信心十足地稱讚自己的作品——即使在人類看來品質其實很普通。這個問題在設計這種主觀任務上尤其明顯，因為它不像軟體測試那樣有明確的 binary check。某個 layout 看起來究竟是精緻還是平庸，本身就是一種 judgment call，而 agent 在評分自己產物時，幾乎都會偏向寬鬆。</p>
+
+    <p>然而，即使是在有可驗證結果的任務上，agent 也還是會因為判斷力不足而影響完成品質。把「負責做事的 agent」與「負責判斷的 agent」分開，是解決這個問題的一個強力槓桿。這種分離不會立刻完全消除寬鬆傾向；evaluator 仍然是個 LLM，天生就傾向對 LLM 生成內容比較寬容。但把一個獨立的 evaluator 調校得更有懷疑精神，事實證明遠比讓 generator 對自己嚴格容易得多；而一旦有了外部回饋，generator 就有具體的方向可以反覆迭代。</p>
+
+    <h2>Frontend 設計：把主觀品質變成可評分項目</h2>
+
+    <p>我一開始是在 frontend 設計上做實驗，因為 self-evaluation 問題在這裡最明顯。若不做任何介入，Claude 通常會傾向產出安全、可預期的版型：技術上可用，但視覺上乏善可陳。</p>
+
+    <p>我為 frontend 設計打造的 harness，受到兩個洞見影響。第一，雖然美感無法被完全壓縮成一個分數，而且每個人的喜好也必然不同，但如果把設計原則與偏好編碼成評分標準，仍然可以提升輸出品質。「這個設計美不美？」很難穩定回答；但「這個設計有沒有符合我們定義的好設計原則？」就能讓 Claude 有具體標準可依循。第二，把 frontend 生成與 frontend 評分拆開，可以建立一個 feedback loop，持續把 generator 推往更好的輸出。</p>
+
+    <p>基於這個想法，我寫了四個評分標準，並把它們放進 generator 與 evaluator 的 prompt 中：</p>
+
+    <ul>
+      <li><strong>Design quality：</strong>這個設計是否像一個完整整體，而不是一堆零件的拼裝？這項做得好的作品，代表色彩、字體、版面、影像與其他細節能共同形成清楚且一致的氛圍與識別。</li>
+      <li><strong>Originality：</strong>看得出有刻意做出的客製化選擇嗎？還是只是 template layout、library 預設值與常見 AI 生成樣式？真正的人類設計師應該能辨認出明確的創意決策。直接拿來用的 stock components，或像是白卡片上套紫色漸層這種典型 AI 痕跡，都會在這裡失分。</li>
+      <li><strong>Craft：</strong>技術執行品質，例如字體層級、間距一致性、色彩協調、對比度等。這比較像是基本功檢查，而不是創意檢查。大多數合理的實作在這項通常不差；如果在這裡失敗，表示基本功壞掉了。</li>
+      <li><strong>Functionality：</strong>不考慮美感時，介面是否仍然好用？使用者能否理解介面用途、找到主要操作並在不猜測的情況下完成任務？</li>
+    </ul>
+
+    <p>我特別強調 design quality 與 originality，而不是 craft 與 functionality。因為 Claude 在 craft 與 functionality 上本來就表現不錯，所需的技術能力對 model 來說相對自然；但在 design 與 originality 上，Claude 常常只能做出平淡無奇的東西。這些標準會明確懲罰高度 generic 的「AI slop」樣式，而把 design 與 originality 權重拉高，也會迫使 model 更願意在美感上承擔一些風險。</p>
+
+    <p>我用附有詳細評分拆解的 few-shot examples 來校準 evaluator。這讓 evaluator 的判斷更符合我的偏好，也減少了不同迭代之間的分數漂移。</p>
+
+    <p>我把這個 loop 建在 <a href="https://platform.claude.com/docs/en/agent-sdk/overview" target="_blank" rel="noopener noreferrer">Claude Agent SDK</a> 上，因此 orchestration 保持得相對簡潔。generator agent 會先根據使用者 prompt 生成 HTML/CSS/JS frontend。我再給 evaluator 一個 Playwright MCP，讓它能直接和 live page 互動，再依各項標準評分並寫出詳細評論。實務上，evaluator 會自己瀏覽頁面、截圖並仔細研究實作，之後才做出評估。這些回饋會再流回 generator，成為下一輪迭代的輸入。每次生成我通常會跑 5 到 15 輪迭代，而且隨著 generator 回應 evaluator 的批評，往往每一輪都會朝更鮮明的方向前進。由於 evaluator 不是只看靜態 screenshot，而是真的在頁面裡操作，因此每一輪都需要真實的 wall-clock time。完整跑一次最長可達四小時。我也要求 generator 在每次評估後做出策略判斷：如果分數走勢不錯，就持續精修目前方向；如果看起來不對，就徹底轉向另一種美學路線。</p>
+
+    <p>在不同實驗中，evaluator 的評估通常會隨著迭代上升，之後進入平台期，而且仍留有進一步提升空間。有些生成結果是漸進式優化；有些則會在迭代之間突然出現明顯的美學轉彎。</p>
+
+    <p>這些評分標準的措辭，也以我原本沒有完全預料到的方式影響了 generator。像是當我加入「最好的設計應該有 museum quality」這類描述時，最終設計就會朝特定視覺風格收斂，顯示與標準一起放進 prompt 的語言本身，就會直接塑造輸出的性格。</p>
+
+    <p>雖然分數整體上通常會隨迭代提高，但曲線並不總是線性上升。整體來看，後期版本通常比較好，但我也經常會偏好中段版本而不是最後版本。實作複雜度也往往會隨回合上升，因為 generator 會根據 evaluator 的回饋去嘗試更大膽的方案。甚至在第一輪輸出時，結果就已經比「完全不做任何 prompting」的 baseline 好不少，這表示光是這套標準與相關措辭本身，就足以在 evaluator 真正開始回饋前，先把 model 從 generic 預設值拉開。</p>
+
+    <p>其中一個特別有代表性的例子，是我要求 model 為一間荷蘭藝術博物館製作網站。到了第九輪時，它已經做出一個乾淨、深色主題的虛構博物館 landing page。那個頁面視覺上很成熟，但大致仍在我的預期範圍內。結果到了第十輪，它完全推翻原本方向，把網站重構成一個空間體驗：用 CSS perspective 渲染出帶棋盤格地板的 3D 房間，把畫作以自由位置掛在牆上，並改用穿越門口在不同展間之間移動，而不是靠 scroll 或 click 導航。這是我以前從單次生成中幾乎沒看過的創意跳躍。</p>
+
+    <h2>擴展到 full-stack coding</h2>
+
+    <p>有了這些發現之後，我開始把這個受 GAN 啟發的模式套用到 full-stack 開發上。generator-evaluator loop 很自然地對應到軟體開發生命週期：在那裡，code review 與 QA 扮演的結構性角色，其實和設計 evaluator 很像。</p>
+
+    <h3>架構</h3>
+
+    <p>在我們先前的 <a href="https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents" target="_blank" rel="noopener noreferrer">long-running harness</a> 裡，我們已經透過 initializer agent、一次做一個 feature 的 coding agent，以及 session 之間的 context reset，解決了多 session coding 的連貫性問題。context reset 是其中一個關鍵突破：因為那套 harness 使用的是 Sonnet 4.5，而它就有前面提到的「context anxiety」傾向。所以，打造一個能在 context reset 之間仍正常運作的 harness，是讓 model 持續維持在任務軌道上的關鍵。到了 Opus 4.5，這種行為大幅減弱，因此我在這個 harness 裡完全拿掉了 context reset。所有 agent 都在整個 build 過程中維持同一個連續 session，並由 <a href="https://platform.claude.com/docs/en/agent-sdk/overview" target="_blank" rel="noopener noreferrer">Claude Agent SDK</a> 的自動 compaction 來處理 context 成長。</p>
+
+    <p>這次的工作建立在原始 harness 的基礎上，但我改成三 agent 系統，每個 agent 都對應我在先前實驗中觀察到的一個缺口。系統中的 agent persona 如下：</p>
+
+    <p><strong>Planner：</strong>先前的 long-running harness 需要使用者一開始就提供很詳細的 spec。我希望把這一步也自動化，因此建立了 planner agent，讓它接收一段 1 到 4 句的簡短 prompt，再擴寫成完整的產品規格。我要求它在 scope 上更有企圖心，同時把重點放在產品情境與高階技術設計，而不是一開始就寫死詳細技術實作。原因是：如果 planner 一開始就試圖指定過細的技術細節，而且有些地方判斷錯誤，這些錯誤就會一路向下游擴散到實作端。更聰明的做法，是約束 agent 必須交付什麼成果，讓它們在執行過程中自己找出實作路徑。我也要求 planner 主動在產品 spec 中找機會編織 AI features。（範例見文末 Appendix。）</p>
+
+    <p><strong>Generator：</strong>先前 harness 中「一次做一個 feature」的方式，在 scope 管理上效果不錯。我在這裡沿用類似做法，要求 generator 以 sprint 為單位工作，每次從 spec 中挑一個 feature 來做。每個 sprint 都以 React、Vite、FastAPI 與 SQLite（後來改為 PostgreSQL）這套 stack 來建構 app，而且 generator 會在每個 sprint 結束時先自行評估，再交給 QA。它也有 git 作為版本控制。</p>
+
+    <p><strong>Evaluator：</strong>先前 harness 產出的應用常常看起來很厲害，但實際操作時仍有不少 bug。為了抓出這些問題，evaluator 會使用 Playwright MCP，像真實使用者一樣去點擊與操作正在執行的應用，測試 UI features、API endpoints 與 database state。接著它會根據找到的 bug，以及一組從 frontend 實驗改寫而來的標準進行評分；這些標準在這裡改成涵蓋產品深度、功能完整性、視覺設計與程式碼品質。每項標準都有硬門檻，只要其中任何一項低於門檻，該 sprint 就算失敗，generator 會收到詳細回饋，知道是哪裡出了問題。</p>
+
+    <p>在每個 sprint 開始前，generator 與 evaluator 會先協商一份 sprint contract：在寫任何程式碼之前，先定義這一段工作「done」的樣子。這麼做是因為產品 spec 本來就刻意維持在高階層次，我需要一個橋接步驟，把 user stories 轉成可測試的實作內容。generator 會先提出自己準備建什麼、以及要如何驗證成功；evaluator 再審查這份提案，確認 generator 正在做的是對的東西。雙方會來回迭代，直到取得共識。</p>
+
+    <p>agent 之間的溝通則透過檔案進行：一個 agent 寫檔，另一個 agent 讀檔後再回寫於同一檔案，或另開新檔讓前一個 agent 再去讀。之後 generator 會根據雙方同意的 contract 進行建構，再把成果交給 QA。這種方式讓工作能忠實對齊 spec，又不會在太早階段就把實作細節鎖死。</p>
+
+    <h3>執行這個 harness</h3>
+
+    <p>這個 harness 的第一版，我使用的是 Claude Opus 4.5，並把使用者 prompt 同時丟給完整 harness 與單一 agent 系統做比較。我之所以選 Opus 4.5，是因為我開始做這些實驗時，它是我們最好的 coding model。</p>
+
+    <p>我用了下面這個 prompt，讓它生成一個 retro video game maker：</p>
+
+    <blockquote>Create a 2D retro game maker with features including a level editor, sprite editor, entity behaviors, and a playable test mode.</blockquote>
+
+    <p>下表顯示不同 harness 類型的執行時間與總成本：</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Harness</th>
+          <th>執行時間</th>
+          <th>成本</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Solo</td>
+          <td>20 分鐘</td>
+          <td>9 美元</td>
+        </tr>
+        <tr>
+          <td>Full harness</td>
+          <td>6 小時</td>
+          <td>200 美元</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>這個 harness 的成本高出 20 倍以上，但輸出品質的差距也立刻顯現出來。</p>
+
+    <p>原本我期待看到的，是一個可以讓我建立 level 及其組成元素（sprites、entities、tile layout），然後按下 play 就能實際遊玩的介面。我先打開 solo run 的輸出，第一眼看上去似乎符合這些預期。</p>
+
+    <p>但實際點進去操作後，問題開始浮現。整體 layout 浪費了很多空間：固定高度的面板讓大部分 viewport 處於空白狀態。工作流程也很僵硬。當我試著建立 level 時，系統先要求我建立 sprites 和 entities，但 UI 裡完全沒有引導我應該照這個順序做。更關鍵的是，實際遊戲根本壞掉了。我的 entities 確實顯示在畫面上，但無論怎麼操作都沒有反應。進一步查看程式碼後，我發現 entity 定義和遊戲 runtime 之間的 wiring 壞了，而且表面上完全看不出問題在哪。</p>
+
+    <p>評估完 solo run 後，我把注意力轉到 harness run。這次 run 是從同一句 prompt 出發，但 planner 先把它擴寫成一份包含 16 個 feature、分散在 10 個 sprint 的 spec，規模遠超過 solo run 嘗試的內容。除了核心的編輯器與 play mode 之外，spec 還包含 sprite animation system、behavior templates、sound effects 與 music、AI-assisted sprite generator 與 level designer，以及能匯出遊戲並產生可分享連結的功能。我讓 planner 可以讀取我們的 <a href="https://github.com/anthropics/claude-code/blob/main/plugins/frontend-design/skills/frontend-design/SKILL.md" target="_blank" rel="noopener noreferrer">frontend design skill</a>，它也確實把那套設計語言吸收到 spec 裡。接著在每個 sprint 中，generator 與 evaluator 都會先協商一份 contract，定義該 sprint 的具體實作細節，以及完成後要驗證的可測試行為。</p>
+
+    <p>這個 app 一打開，就比 solo run 顯得更有質感也更流暢。canvas 吃滿整個 viewport，面板大小更合理，整體介面有一致的視覺識別，也呼應了 spec 中定下的設計方向。當然，我在 solo run 看到的一些笨拙感仍然存在——例如工作流程還是不夠清楚，沒告訴你應該先做 sprites 和 entities 再來建立 level，我仍然得靠自己摸索。這看起來比較像 base model 在產品直覺上的缺口，而不是 harness 原本打算解決的問題；不過這也暗示了一個未來可以在 harness 內進一步改善輸出品質的方向。</p>
+
+    <p>實際操作各種 editor 後，這個新版本相較於 solo 的優勢就更明顯了。sprite editor 更豐富、功能更完整，工具面板更乾淨，color picker 更好用，zoom 控制也更實際。</p>
+
+    <p>因為我要求 planner 把 AI features 編進 spec，這個 app 也內建了 Claude integration，讓我能透過 prompt 直接生成遊戲的不同部分，大幅加快整體工作流程。</p>
+
+    <p>最大的差別出現在 play mode：我真的能移動自己的 entity，遊戲也真的玩得起來。物理系統仍有些粗糙——例如角色跳上平台後會和平台疊在一起，直覺上很怪——但至少核心功能是能運作的，而這是 solo run 沒做到的。玩了一陣子後，我也碰到 AI 在關卡建構上的一些限制。地圖上有一道很高的牆，我跳不過去，結果整個人被卡住。這顯示出這套 harness 若要更進一步打磨 app，仍有不少常識性改善與 edge cases 可以處理。</p>
+
+    <p>從 logs 來看，很明顯 evaluator 讓實作過程持續對齊 spec。每個 sprint 中，它都會按照 sprint contract 的測試條件去檢查，並透過 Playwright 實際操作正在執行的 app，把任何偏離預期的地方列成 bug。這些 contract 寫得很細——光是 Sprint 3 就有 27 個條件涵蓋 level editor——而 evaluator 提出的問題也具體到不需要額外調查就能著手修正。下表是幾個 evaluator 找出的問題範例：</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Contract criterion</th>
+          <th>Evaluator finding</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Rectangle fill tool allows click-drag to fill a rectangular area with selected tile</td>
+          <td>FAIL — 這個工具只會在拖曳起點與終點放 tile，沒有真的填滿中間區域。<code>fillRectangle</code> function 雖然存在，但沒有在 <code>mouseUp</code> 時正確觸發。</td>
+        </tr>
+        <tr>
+          <td>User can select and delete placed entity spawn points</td>
+          <td>FAIL — <code>LevelEditor.tsx:892</code> 的 Delete key handler 要求 <code>selection</code> 與 <code>selectedEntityId</code> 同時存在，但實際點擊 entity 時只會設定 <code>selectedEntityId</code>。條件應改成 <code>selection || (selectedEntityId && activeLayer === 'entity')</code>。</td>
+        </tr>
+        <tr>
+          <td>User can reorder animation frames via API</td>
+          <td>FAIL — <code>PUT /frames/reorder</code> route 被定義在 <code>/{frame_id}</code> 路由之後。FastAPI 會把 <code>reorder</code> 當成 <code>frame_id</code> 整數去解析，最後回傳 422：<code>unable to parse string as an integer.</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>要把 evaluator 調到這種程度並不容易。預設情況下，Claude 其實不是個好的 QA agent。在早期實驗裡，我看過它明明找出真問題，卻又自己說服自己那不算嚴重，最後仍然讓作品過關。它也傾向做很表面的測試，不太會主動鑽 edge cases，因此許多比較微妙的 bug 都會漏掉。我的調校方式，是反覆閱讀 evaluator 的 logs，找出它的判斷和我不同的地方，再更新 QA prompt 去修正這些偏差。這個迭代循環做了好幾輪後，evaluator 的評分方式才逐漸變得合理。即使如此，harness 的輸出仍然顯示出 model 在 QA 上的極限：小的版面問題、某些操作手感不直覺、以及藏得更深的功能 bug，evaluator 都未必測得出來。很明顯，若再繼續調校，驗證能力還有很大進步空間。但和 solo run 那種連最核心功能都壞掉的情況相比，提升是很顯著的。</p>
+
+    <h3>持續迭代 harness</h3>
+
+    <p>第一批 harness 結果雖然令人鼓舞，但整體仍顯得笨重、緩慢，而且昂貴。接下來很自然的問題，就是如何在不犧牲效果的前提下，把 harness 簡化。這一方面是常識，另一方面也來自一個更普遍的原則：harness 中的每一個元件，都隱含了某種「model 自己做不到這件事」的假設，而這些假設值得被反覆壓力測試——因為它們可能本來就不對，也可能會隨著 model 進步而迅速過時。我們在文章 <a href="https://www.anthropic.com/research/building-effective-agents" target="_blank" rel="noopener noreferrer">Building Effective Agents</a> 裡把這個核心想法概括為「先找出盡可能簡單的解法，只有在必要時才增加複雜度」；對任何維護 agent harness 的人來說，這個模式都會一再出現。</p>
+
+    <p>我第一次嘗試簡化時，曾經大刀闊斧地砍掉許多結構，並加入幾個新的創意做法，但最終沒能重現原始版本的效果。更麻煩的是，我開始分不清哪些元件真的是 load-bearing、哪些不是，以及它們究竟以什麼方式重要。經歷那次之後，我改採更系統化的方法：每次只拿掉一個元件，再觀察它對最終結果造成了什麼影響。</p>
+
+    <p>而就在我反覆做這些迭代時，我們也發布了 Opus 4.6，這讓我更有理由去降低 harness 的複雜度。因為很合理地預期，4.6 需要的 scaffolding 會比 4.5 少。正如我們在 <a href="https://www.anthropic.com/news/claude-opus-4-6" target="_blank" rel="noopener noreferrer">launch blog</a> 中所說：</p>
+
+    <blockquote>「[Opus 4.6] 在規劃上更仔細，能更長時間維持 agentic tasks，在大型 codebase 中運作更可靠，也有更好的 code review 與 debugging 能力來抓出自己的錯誤。」</blockquote>
+
+    <p>它在 long-context retrieval 上也有明顯進步。這些能力原本正是 harness 想額外補上的部分。</p>
+
+    <h3>拿掉 sprint 結構</h3>
+
+    <p>我首先拿掉的，是 sprint 這個結構本身。sprint 原本的作用，是把工作拆成較小區塊，好讓 model 能保持連貫地處理。既然 Opus 4.6 有了這些提升，就很有理由相信 model 本身已經能處理這份工作，不再需要這種拆解。</p>
+
+    <p>我保留了 planner 與 evaluator，因為這兩者仍然持續帶來明顯價值。沒有 planner 時，generator 會 under-scope：它會直接根據原始 prompt 開始做，而不會先替自己的工作建立 spec，最後做出來的應用就會比 planner 展開後的版本少很多 feature。</p>
+
+    <p>拿掉 sprint 結構後，我把 evaluator 改成只在整個 run 結束時做一次檢查，而不再是每個 sprint 都評分。由於 model 本身變強了，evaluator 對某些任務的「承重程度」也隨之改變，它是否有用，取決於任務相對於 model 單獨能力的邊界落在哪裡。對 4.5 來說，這條邊界很近：我們要建的東西正好在 generator 單獨完成能力的極限附近，因此 evaluator 在整個 build 過程中確實能抓到很多關鍵問題。到了 4.6，model 的原始能力提高了，這條邊界就被往外推。以前需要 evaluator 幫忙把關才能做得連貫的任務，現在很多時候 generator 自己就能穩定完成；對這些落在邊界內的任務來說，evaluator 反而成了額外開銷。但對那些仍處在 generator 能力邊緣的部分，evaluator 依然能帶來真實提升。</p>
+
+    <p>實務上的含義是：evaluator 不是一個永遠固定的 yes-or-no 決策。當任務超出目前 model 能穩定單獨處理的範圍時，它的成本就是值得的。</p>
+
+    <p>除了結構上的簡化之外，我也新增了一些 prompting，改善 harness 在每個 app 裡構建 AI features 的方式——特別是讓 generator 能做出一個真正的 agent，透過 tools 來驅動 app 自身功能。這件事確實需要反覆迭代，因為相關知識還很新，Claude 的訓練資料對這塊覆蓋不算深。但經過足夠調整之後，generator 的確能把 agent 正確建出來。</p>
+
+    <h3>更新後 harness 的結果</h3>
+
+    <p>為了測試更新後的 harness，我使用了下面這個 prompt，讓它生成一個 Digital Audio Workstation（DAW），也就是用來作曲、錄音與混音的音樂製作程式：</p>
+
+    <blockquote>Build a fully featured DAW in the browser using the Web Audio API.</blockquote>
+
+    <p>這次 run 依然很長、也很昂貴，大約花了 4 小時，token 成本約 124 美元。</p>
+
+    <p>大多數時間都花在 builder 上。即使沒有 Opus 4.5 時代所需的 sprint 拆解，builder 仍然能連貫工作超過兩個小時。</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Agent / 階段</th>
+          <th>時間</th>
+          <th>成本</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Planner</td>
+          <td>4.7 分鐘</td>
+          <td>0.46 美元</td>
+        </tr>
+        <tr>
+          <td>Build（Round 1）</td>
+          <td>2 小時 7 分</td>
+          <td>71.08 美元</td>
+        </tr>
+        <tr>
+          <td>QA（Round 1）</td>
+          <td>8.8 分鐘</td>
+          <td>3.24 美元</td>
+        </tr>
+        <tr>
+          <td>Build（Round 2）</td>
+          <td>1 小時 2 分</td>
+          <td>36.89 美元</td>
+        </tr>
+        <tr>
+          <td>QA（Round 2）</td>
+          <td>6.8 分鐘</td>
+          <td>3.09 美元</td>
+        </tr>
+        <tr>
+          <td>Build（Round 3）</td>
+          <td>10.9 分鐘</td>
+          <td>5.88 美元</td>
+        </tr>
+        <tr>
+          <td>QA（Round 3）</td>
+          <td>9.6 分鐘</td>
+          <td>4.06 美元</td>
+        </tr>
+        <tr>
+          <td>Total V2 Harness</td>
+          <td>3 小時 50 分</td>
+          <td>124.70 美元</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>和前一版 harness 一樣，planner 會先把一句話 prompt 展開成完整 spec。從 logs 來看，generator model 在規劃 app 與 agent 設計、把 agent wiring 接好，以及在交給 QA 前先自行測試等方面，都做得不錯。</p>
+
+    <p>即便如此，QA agent 還是抓出了真正的缺口。在第一輪回饋中，它指出：</p>
+
+    <blockquote>這是一個很強的 app，設計完成度高、AI agent 穩固，backend 也不錯。主要失敗點在於 Feature Completeness —— 雖然 app 看起來很厲害、AI integration 也運作良好，但幾個核心 DAW 功能仍然只是展示用，缺乏真正互動深度：clips 不能在 timeline 上拖曳或移動，沒有 instrument UI panels（例如 synth knobs、drum pads），也沒有可視化 effect editors（例如 EQ 曲線、compressor meters）。這些不是邊角功能，而是讓 DAW 真正可用的核心互動，而且 spec 也明確要求了它們。</blockquote>
+
+    <p>到了第二輪回饋，它又再次抓出多個功能缺口：</p>
+
+    <blockquote>
+      <p>仍然存在的缺口：</p>
+      <ul>
+        <li>Audio recording 仍然只是 stub（按鈕會切換，但沒有真正擷取麥克風）</li>
+        <li>尚未實作用邊緣拖曳調整 clip 長度，以及 clip split</li>
+        <li>Effect visualizations 仍是數字 slider，而不是圖形化呈現（例如沒有 EQ curve）</li>
+      </ul>
+    </blockquote>
+
+    <p>當 generator 被放著自己做時，仍然很容易漏掉細節，或把某些 feature 做成 stub；而 QA 在抓出這些最後一哩的問題上，仍然很有價值。</p>
+
+    <p>根據這個 prompt，我原本期待的是一個能讓我創作旋律、和聲與鼓組節奏，再把它們編排成歌曲，並在過程中接受內建 agent 協助的程式。文中的影片展示了最終結果。</p>
+
+    <p>這個 app 當然還遠稱不上專業級音樂製作軟體，而 agent 在歌曲創作上的能力也還很需要加強。另外，Claude 本身其實聽不到聲音，這也讓 QA feedback loop 在「音樂品味」這一層面上比較難發揮。</p>
+
+    <p>但最終 app 已經具備一套可用音樂製作程式的核心元素：可運作的 arrangement view、mixer 與 transport，都能在瀏覽器中跑起來。除此之外，我甚至能完全靠 prompting 拼出一小段歌曲片段：agent 幫我設定 tempo 與 key、鋪出 melody、建立 drum track、調整 mixer levels，還加上 reverb。作曲需要的核心 primitive 都已經在場，而 agent 也能透過 tools 自主驅動這些 primitive，從頭到尾做出一段簡單作品。你可以說它現在還稱不上 pitch-perfect，但它確實正一步步接近。</p>
+
+    <h2>接下來會怎麼發展</h2>
+
+    <p>隨著 model 持續進步，我們大致可以預期，它們能工作更久、處理更複雜的任務。在某些情況下，這代表包在 model 外圍的 scaffold 會隨時間變得沒那麼重要，開發者只要等下一代 model 出來，就會看到部分問題自行消失。另一方面，model 越強，也代表越有空間去發展新的 harness，使它能完成超出 baseline 能力的複雜任務。</p>
+
+    <p>抱著這個觀點，我認為這項工作有幾個值得保留的教訓。第一，針對你正在使用的 model 做實驗、閱讀它在真實問題上的 traces，並調校它以得到你想要的結果，始終是好做法。第二，在處理更複雜的任務時，把工作拆解並針對問題不同面向配置專門的 agents，有時確實能帶來顯著 headroom。第三，當新 model 上線時，重新檢視現有 harness 通常也是好習慣：拿掉那些已經不再 load-bearing 的元件，並加入新的結構，讓它實現過去做不到的能力。</p>
+
+    <p>從這次工作中，我更確信一件事：隨著 model 進步，有趣的 harness 組合空間並不會縮小。它只是會移動，而 AI engineers 真正有趣的工作，就是持續找出下一種新穎而有效的組合方式。</p>
+
+    <h2>致謝</h2>
+
+    <p>特別感謝 Mike Krieger、Michael Agaby、Justin Young、Jeremy Hadfield、David Hershey、Julius Tarng、Xiaoyi Zhang、Barry Zhang、Orowa Sidker、Michael Tingley、Ibrahim Madha、Martina Long 與 Canyon Robbins 對這項工作的貢獻。</p>
+
+    <p>也感謝 Jake Eaton、Alyssa Leonard 與 Stef Sequeira 協助塑造這篇文章。</p>
+
+    <h2>附錄</h2>
+
+    <p>以下是 planner agent 生成的一個示例計畫。</p>
+
+    <h3>RetroForge - 2D Retro Game Maker</h3>
+
+    <h4>Overview</h4>
+
+    <p>RetroForge 是一套以網頁為基礎的創作工作室，用來設計與打造 2D 復古風格電子遊戲。它把經典 8-bit 與 16-bit 遊戲美學的懷舊魅力，和現代、直覺式的編輯工具結合在一起，讓從 hobbyist 創作者到 indie 開發者，都能在不撰寫傳統程式碼的情況下，把自己的遊戲點子做出來。</p>
+
+    <p>這個平台整合了四個創作模組：用於設計遊戲世界的 tile-based Level Editor、用來繪製視覺資產的 pixel-art Sprite Editor、用來定義遊戲邏輯的 visual Entity Behavior system，以及可即時測試遊戲體驗的 Playable Test Mode。再加上由 Claude 驅動、貫穿全流程的 AI 協助，RetroForge 可以透過自然語言互動幫助使用者生成 sprites、設計 levels，並設定 behaviors，進一步加快創作流程。</p>
+
+    <p>RetroForge 的目標使用者，是喜歡 retro gaming 美學、但也想要現代便利性的創作者。不論是想重現童年時玩過的平台遊戲、RPG 或動作遊戲，還是想在復古限制下發明全新的體驗，使用者都能快速 prototype、用視覺方式反覆迭代，並把作品分享給其他人。</p>
+
+    <h4>Features</h4>
+
+    <h4>1. Project Dashboard &amp; Management</h4>
+
+    <p>Project Dashboard 是 RetroForge 所有創作工作的起點。使用者需要一個清楚、有條理的地方來管理遊戲專案——能建立新專案、回到進行中的作品，也能一眼理解每個專案包含什麼內容。</p>
+
+    <p><strong>User Stories：</strong>身為使用者，我希望能：</p>
+
+    <ul>
+      <li>建立帶有名稱與描述的新遊戲專案，讓我可以開始設計自己的遊戲。</li>
+      <li>以視覺卡片方式看到所有現有專案，顯示專案名稱、最後修改日期與縮圖預覽，讓我可以快速找到並繼續先前工作。</li>
+      <li>打開任何專案進入完整的遊戲編輯工作區，讓我可以開始製作遊戲。</li>
+      <li>刪除不再需要的專案，並有確認對話框避免誤刪，讓我的工作區保持整潔。</li>
+      <li>複製既有專案作為新遊戲的起點，讓我能重複利用先前成果。</li>
+    </ul>
+
+    <p><strong>Project Data Model：</strong>每個專案包含：</p>
+
+    <ul>
+      <li>專案 metadata（名稱、描述、建立／修改時間戳）</li>
+      <li>Canvas 設定（解析度，例如 256x224、320x240 或 160x144）</li>
+      <li>Tile size 設定（8x8、16x16 或 32x32 pixels）</li>
+      <li>Color palette 選擇</li>
+      <li>所有相關的 sprites、tilesets、levels 與 entity definitions</li>
+    </ul>
+
+    <p>……（原文附錄在來源頁面後續尚有更多內容，這裡依抓取到的文章內容呈現。）</p>
+  </div>
+</body>
+</html>
