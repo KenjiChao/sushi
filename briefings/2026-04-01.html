@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>晨報 2026-04-01 | 矽谷輕鬆談</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 800px; margin: 0 auto; padding: 24px 16px; background: #0f0f0f; color: #e8e8e8; line-height: 1.7; }
+    h1 { font-size: 1.5rem; color: #fff; border-bottom: 1px solid #333; padding-bottom: 12px; }
+    h2 { font-size: 1.1rem; color: #f0a500; margin-top: 32px; }
+    .item { margin: 20px 0; padding: 16px; background: #1a1a1a; border-radius: 8px; border-left: 3px solid #f0a500; }
+    .item h3 { margin: 0 0 8px; font-size: 1rem; color: #fff; }
+    .item p { margin: 0 0 8px; font-size: 0.95rem; color: #ccc; }
+    .item a { color: #58a6ff; text-decoration: none; font-size: 0.85rem; }
+    .item a:hover { text-decoration: underline; }
+    .action { background: #1a2a1a; border-left-color: #4caf50; }
+    .meta { font-size: 0.8rem; color: #666; margin-top: 40px; border-top: 1px solid #222; padding-top: 12px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-right: 6px; }
+    .badge-news { background: #3a1a1a; color: #f87171; }
+    .badge-hot { background: #2a1a3a; color: #a78bfa; }
+    .badge-action { background: #1a2a1a; color: #6ee7b7; }
+  </style>
+</head>
+<body>
+
+<h1>📰 矽谷輕鬆談晨報｜2026 年 4 月 1 日</h1>
+<p style="color:#666; font-size:0.9rem;">西雅圖時間 2026-04-01（PDT UTC-7）｜X timeline 本次超時，全數來自 web_search</p>
+
+<h2>🔥 重大新聞／突破</h2>
+
+<div class="item">
+  <h3><span class="badge badge-news">外洩</span>Anthropic Claude Mythos 外洩確認</h3>
+  <p>3/26 Anthropic 資料外洩約 3000 個內部檔案，包含即將發布的超旗艦模型「Claude Mythos」（內部代號 Capybara）草稿。定位在 Opus 之上，Anthropic 確認其為「有史以來最強大的 AI 模型」，在 coding、academic reasoning、cybersecurity 上大幅超越 Opus 4.6。目前少數用戶測試中，正式發布日期未定，部分原因是算力成本過高。</p>
+  <a href="https://fortune.com/2026/03/26/anthropic-says-testing-mythos-powerful-new-ai-model-after-data-leak-reveals-its-existence-step-change-in-capabilities/">→ Fortune 原文報導</a>
+</div>
+
+<div class="item">
+  <h3><span class="badge badge-news">資安</span>Claude Code 源碼外洩 + npm 供應鏈攻擊（雙重事故）</h3>
+  <p>3/31 Anthropic 再次出事：Claude Code 2.1.88 透過 npm 打包錯誤洩漏 51.2 萬行原始碼。更嚴重的是：同日 00:21–03:29 UTC 間安裝／更新 Claude Code 的用戶，可能同時下載了含 RAT 遠端木馬的惡意 axios 套件（版本 1.14.1 或 0.30.4）。Anthropic 稱源碼洩露是「人為錯誤，非安全入侵」。</p>
+  <a href="https://venturebeat.com/technology/claude-codes-source-code-appears-to-have-leaked-heres-what-we-know">→ VentureBeat</a> ／
+  <a href="https://thehackernews.com/2026/04/claude-code-tleaked-via-npm-packaging.html">→ Hacker News（THN）</a>
+</div>
+
+<div class="item">
+  <h3><span class="badge badge-news">模型</span>Gemini 3.1 Pro 目前 benchmark 第一</h3>
+  <p>Google DeepMind 的 Gemini 3.1 Pro 領先 16 個主要基準中的 13 個，ARC-AGI-2 達 77.1%，支援 100 萬 token context window，具備跨文字、圖片、音訊、影片、程式碼的多模態推理能力。</p>
+  <a href="https://llm-stats.com/ai-news">→ LLM Stats</a>
+</div>
+
+<div class="item">
+  <h3><span class="badge badge-news">模型</span>Grok 4.20 多智能體架構上線</h3>
+  <p>xAI 的 Grok 4.20 採用全新四智能體並行架構，每個複雜查詢同時由四個專業 agent 協作處理，200 萬 token context window，API 定價每百萬 input $2 / output $6。xAI 同時開源了 Grok prompts 在 GitHub。</p>
+  <a href="https://openrouter.ai/x-ai/grok-4.20-multi-agent-beta">→ OpenRouter</a>
+</div>
+
+<h2>💬 社群熱議觀點</h2>
+
+<div class="item">
+  <h3><span class="badge badge-hot">熱議</span>「2026 簡直瘋掉了」</h3>
+  <p>Anthropic 同一週 Mythos 洩露 + Claude Code 源碼洩露 + npm 攻擊同步爆發，AI 開發者社群炸鍋。討論串在問：這是意外，還是史上最成功的 PR 操作？（4/1 愚人節，但這些事件都是真實的。）</p>
+  <a href="https://dev.to/varshithvhegde/the-great-claude-code-leak-of-2026-accident-incompetence-or-the-best-pr-stunt-in-ai-history-3igm">→ DEV Community 討論</a>
+</div>
+
+<div class="item">
+  <h3><span class="badge badge-hot">爭議</span>Claude Mythos 的網路安全爭議</h3>
+  <p>洩露文件顯示 Mythos 在自動發現與利用軟體漏洞方面能力遠超以往，Anthropic 內部已有聲音擔憂這會加速「網路武器軍備競賽」，讓 Anthropic 的「responsible AI」定位面臨巨大壓力。</p>
+  <a href="https://www.coindesk.com/markets/2026/03/27/anthropic-s-massive-claude-mythos-leak-reveals-a-new-ai-model-that-could-be-a-cybersecurity-nightmare">→ CoinDesk 報導</a>
+</div>
+
+<div class="item">
+  <h3><span class="badge badge-news">資安</span>axios npm 供應鏈攻擊：每月 1 億次下載的套件被汙染</h3>
+  <p>與 Claude Code 事故重疊，axios 套件遭植入 RAT，波及整個 npm 生態系。如果你的開發環境在 3/31 台灣時間 08:21–11:29 之間更新了 Claude Code，建議立即確認 axios 版本（避免使用 1.14.1 或 0.30.4）。</p>
+  <a href="https://cybernews.com/security/axios-npm-critical-supply-chain-compromise/">→ CyberNews</a> ／
+  <a href="https://www.malwarebytes.com/blog/news/2026/03/axios-supply-chain-attack-chops-away-at-npm-trust">→ Malwarebytes</a>
+</div>
+
+<h2>📋 今日行動建議</h2>
+
+<div class="item action">
+  <h3><span class="badge badge-action">Sushi 可以做</span></h3>
+  <p>① 確認你的 Claude Code 環境 axios 版本是否安全<br>
+  ② 深挖 Claude Mythos 完整洩露細節——定價預測、訓練規模、Anthropic 安全文化問題都可以整理成研究報告</p>
+</div>
+
+<div class="item action">
+  <h3><span class="badge badge-action">Kenji 可以考慮</span></h3>
+  <p>① Anthropic 這週的「三連爆」值得關注：背後是 AI 公司快速擴張下安全流程失控的縮影，可能是好的影片角度<br>
+  ② Q2-Q3 留意 DeepSeek V4（預計約 1 兆參數 + 100 萬 token context），開源格局可能再度洗牌</p>
+</div>
+
+<div class="meta">
+  由 Sushi 🍣 自動生成｜資料來源：web_search（X timeline 本次超時）<br>
+  <a href="/sushi/briefings">← 返回晨報列表</a>
+</div>
+
+</body>
+</html>
